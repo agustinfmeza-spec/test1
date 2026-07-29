@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Planificador semanal de comidas</title>
+<style>
+  :root {
+    --bg: #f5f7fb;
+    --panel: #ffffff;
+    --ink: #1c2a3a;
+    --muted: #6b7a90;
+    --line: #e3e8f0;
+    --accent: #4a7cff;
+    --accent-soft: #e8efff;
+    --ok: #2fa36b;
+    --warn: #d97706;
+    --danger: #c0392b;
+    --chip: #eef2f8;
+    --sky: #6ec1e4;
+    --shadow: 0 2px 6px rgba(20, 40, 80, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  header { background: linear-gradient(135deg, #74b9ff, #4a7cff); color: #fff; padding: 22px 28px; box-shadow: var(--shadow); }
+  header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
+  header p { margin: 0; opacity: 0.9; font-size: 14px; }
+  main { padding: 20px 28px 60px; max-width: 1400px; margin: 0 auto; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow);
+  }
+  .control-group { display: flex; flex-direction: column; gap: 8px; min-width: 220px; flex: 1; }
+  .control-group label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
+  .name-inputs { display: flex; gap: 10px; }
+  .name-inputs input {
+    padding: 8px 10px; font-size: 14px; border: 1px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--ink); width: 100%;
+  }
+  .name-inputs input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .gusto-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .gusto-chip {
+    background: var(--chip); color: var(--ink); border: 1px solid transparent;
+    border-radius: 999px; padding: 5px 12px; font-size: 12.5px; cursor: pointer;
+    user-select: none; transition: all 0.15s ease;
+  }
+  .gusto-chip:hover { border-color: var(--accent); }
+  .gusto-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .buttons { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  button {
+    font-family: inherit; font-size: 13.5px; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { background: #3567ea; color: #fff; }
+  button.ghost { background: transparent; }
+  button.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  .calendar {
+    display: grid; grid-template-columns: 110px repeat(7, 1fr);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; box-shadow: var(--shadow);
+  }
+  .cell { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 8px; min-height: 92px; position: relative; }
+  .cell:nth-child(8n) { border-right: none; }
+  .head {
+    background: #f0f4fa; font-weight: 600; font-size: 13px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; align-items: center; justify-content: center; min-height: 44px;
+  }
+  .rowlabel {
+    background: #f8fafd; font-weight: 600; font-size: 13px; color: var(--ink);
+    display: flex; align-items: center; justify-content: center; text-align: center;
+  }
+  .meal-cell { display: flex; flex-direction: column; gap: 6px; }
+  .person-slot {
+    background: #fbfcfe; border: 1px dashed var(--line); border-radius: 8px;
+    padding: 6px 8px; font-size: 12.5px; cursor: pointer; flex: 1; min-height: 32px;
+    display: flex; flex-direction: column; justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .person-slot:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .person-slot.filled { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--ink); }
+  .person-slot .who { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .person-slot .dish { font-weight: 500; line-height: 1.2; }
+  .person-slot.empty .dish { color: var(--muted); font-style: italic; font-weight: 400; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15, 25, 45, 0.5);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel); border-radius: 14px; width: 100%; max-width: 640px;
+    max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(15,30,60,0.25);
+  }
+  .modal-header { padding: 18px 22px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h2 { margin: 0; font-size: 17px; }
+  .modal-header .subtitle { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .modal-body { padding: 16px 22px; overflow-y: auto; flex: 1; }
+  .modal-footer { padding: 12px 22px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+  .modal-search { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+  .option-list { display: flex; flex-direction: column; gap: 6px; }
+  .option {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .option:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .option .info { flex: 1; }
+  .option .name { font-weight: 500; font-size: 14px; }
+  .option .tags { font-size: 11.5px; color: var(--muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .option .tag { background: var(--chip); padding: 2px 8px; border-radius: 999px; }
+  .option .tag.match { background: var(--accent); color: #fff; }
+  .empty-state { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+
+  .close-btn { background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; padding: 0 4px; }
+  .close-btn:hover { color: var(--ink); }
+
+  @media (max-width: 900px) {
+    .calendar { grid-template-columns: 90px repeat(7, minmax(140px, 1fr)); overflow-x: auto; }
+    main { padding: 16px; }
+    header { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🥘 Planificador semanal de comidas</h1>
+  <p>Lunes a domingo · 4 comidas · 2 personas · recetas argentinas</p>
+</header>
+
+<main>
+  <section class="controls">
+    <div class="control-group">
+      <label>Personas</label>
+      <div class="name-inputs">
+        <input type="text" id="p1" placeholder="Persona 1" />
+        <input type="text" id="p2" placeholder="Persona 2" />
+      </div>
+    </div>
+    <div class="control-group" style="flex: 2; min-width: 320px;">
+      <label>Gustos del momento (filtran las sugerencias)</label>
+      <div id="gustoChips" class="gusto-chips"></div>
+    </div>
+    <div class="control-group" style="flex: 0 0 auto; min-width: unset;">
+      <label>Acciones</label>
+      <div class="buttons">
+        <button class="primary" id="autoFill">🎲 Sugerir toda la semana</button>
+        <button class="danger" id="clearWeek">Limpiar semana</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="calendar" id="calendar"></div>
+</main>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalTitle">Elegir comida</h2>
+        <div class="subtitle" id="modalSubtitle"></div>
+      </div>
+      <button class="close-btn" id="modalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" class="modal-search" id="modalSearch" placeholder="Buscar receta..." />
+      <div class="option-list" id="optionList"></div>
+    </div>
+    <div class="modal-footer">
+      <button id="clearCell" class="danger ghost">Vaciar esta comida</button>
+      <button id="randomPick" class="primary">🎲 Elegir al azar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DIAS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const COMIDAS = ["Desayuno","Almuerzo","Merienda","Cena"];
+const PERSONAS = ["p1","p2"];
+
+const GUSTOS = [
+  "Liviano","Contundente","Vegetariano","Dulce","Salado",
+  "Frío","Caliente","Rápido","Elaborado","Tradicional",
+  "Parrilla","Pasta","Masas","Guiso","Ensalada","Frito"
+];
+
+const RECETAS = {
+  Desayuno: [
+    { n: "Mate con tostadas y dulce de leche", t: ["Liviano","Tradicional","Dulce","Rápido"] },
+    { n: "Café con leche y medialunas", t: ["Tradicional","Dulce"] },
+    { n: "Tostadas con manteca y mermelada", t: ["Liviano","Dulce","Rápido"] },
+    { n: "Yogur con granola y frutas", t: ["Liviano","Rápido","Frío"] },
+    { n: "Facturas variadas con café", t: ["Dulce","Tradicional"] },
+    { n: "Mate cocido con vainillas", t: ["Liviano","Dulce","Tradicional"] },
+    { n: "Licuado de banana con avena", t: ["Liviano","Rápido","Dulce","Frío"] },
+    { n: "Huevos revueltos con tostadas", t: ["Contundente","Salado","Caliente"] },
+    { n: "Panqueques con dulce de leche", t: ["Dulce","Elaborado","Tradicional"] },
+    { n: "Sándwich tostado de jamón y queso", t: ["Rápido","Salado","Caliente"] },
+    { n: "Avena con frutas y miel", t: ["Liviano","Dulce","Caliente"] },
+    { n: "Tortilla de queso con tostadas", t: ["Contundente","Salado"] },
+  ],
+  Almuerzo: [
+    { n: "Milanesas con puré", t: ["Contundente","Tradicional","Caliente"] },
+    { n: "Milanesa napolitana con papas fritas", t: ["Contundente","Frito","Tradicional"] },
+    { n: "Bife de chorizo con ensalada", t: ["Contundente","Parrilla","Tradicional"] },
+    { n: "Asado con ensalada mixta", t: ["Contundente","Parrilla","Tradicional","Elaborado"] },
+    { n: "Empanadas de carne", t: ["Tradicional","Salado","Masas"] },
+    { n: "Empanadas de pollo", t: ["Tradicional","Salado","Masas"] },
+    { n: "Empanadas de jamón y queso", t: ["Tradicional","Salado","Masas"] },
+    { n: "Pastel de papa", t: ["Contundente","Tradicional","Guiso","Caliente"] },
+    { n: "Ñoquis con tuco", t: ["Pasta","Contundente","Tradicional"] },
+    { n: "Ravioles de ricota con salsa", t: ["Pasta","Vegetariano","Tradicional"] },
+    { n: "Fideos con tuco y albóndigas", t: ["Pasta","Contundente"] },
+    { n: "Lasagna", t: ["Pasta","Contundente","Elaborado"] },
+    { n: "Guiso de lentejas", t: ["Guiso","Contundente","Tradicional","Caliente"] },
+    { n: "Locro", t: ["Guiso","Contundente","Tradicional","Elaborado","Caliente"] },
+    { n: "Pollo al horno con papas", t: ["Contundente","Tradicional"] },
+    { n: "Suprema de pollo con puré", t: ["Contundente","Caliente"] },
+    { n: "Tarta de jamón y queso", t: ["Salado","Rápido","Masas"] },
+    { n: "Tarta de verdura", t: ["Vegetariano","Salado","Masas"] },
+    { n: "Ensalada César con pollo", t: ["Liviano","Ensalada","Frío"] },
+    { n: "Ensalada completa (huevo, atún, tomate)", t: ["Liviano","Ensalada","Frío","Rápido"] },
+    { n: "Wok de verduras con arroz", t: ["Vegetariano","Liviano","Caliente"] },
+    { n: "Pizza casera", t: ["Tradicional","Contundente"] },
+    { n: "Choripán con ensalada", t: ["Parrilla","Tradicional","Contundente"] },
+    { n: "Bondiola braseada con puré", t: ["Contundente","Elaborado","Caliente"] },
+    { n: "Matambre a la pizza", t: ["Contundente","Tradicional","Parrilla"] },
+    { n: "Risotto de hongos", t: ["Vegetariano","Elaborado"] },
+    { n: "Arroz con pollo", t: ["Tradicional","Contundente","Caliente"] },
+  ],
+  Merienda: [
+    { n: "Mate con bizcochos", t: ["Tradicional","Liviano","Salado","Rápido"] },
+    { n: "Té con tostadas", t: ["Liviano","Rápido","Caliente"] },
+    { n: "Café con leche y facturas", t: ["Dulce","Tradicional"] },
+    { n: "Chocolatada con galletitas", t: ["Dulce","Liviano","Rápido"] },
+    { n: "Torta casera de manzana", t: ["Dulce","Elaborado"] },
+    { n: "Sándwich de miga", t: ["Tradicional","Rápido","Salado"] },
+    { n: "Alfajores de maicena caseros", t: ["Dulce","Tradicional","Elaborado"] },
+    { n: "Scones con dulce", t: ["Dulce","Rápido"] },
+    { n: "Yogur con frutas", t: ["Liviano","Frío","Rápido"] },
+    { n: "Tostadas con queso crema y mermelada", t: ["Dulce","Rápido"] },
+    { n: "Budín inglés con té", t: ["Dulce","Tradicional"] },
+    { n: "Chipá con mate", t: ["Salado","Tradicional","Masas"] },
+  ],
+  Cena: [
+    { n: "Pizza casera", t: ["Tradicional","Contundente"] },
+    { n: "Empanadas variadas", t: ["Tradicional","Salado","Masas"] },
+    { n: "Tarta de zapallitos", t: ["Vegetariano","Liviano","Masas"] },
+    { n: "Milanesas al horno con ensalada", t: ["Liviano","Tradicional"] },
+    { n: "Sopa de verduras", t: ["Liviano","Caliente","Vegetariano"] },
+    { n: "Revuelto Gramajo", t: ["Contundente","Tradicional"] },
+    { n: "Tortilla de papas", t: ["Salado","Tradicional"] },
+    { n: "Ensalada de pollo y palta", t: ["Liviano","Ensalada","Frío"] },
+    { n: "Hamburguesas caseras con papas", t: ["Contundente","Frito"] },
+    { n: "Pescado al horno con puré", t: ["Liviano","Caliente"] },
+    { n: "Wok de pollo con verduras", t: ["Liviano","Caliente"] },
+    { n: "Rabas con limón", t: ["Frito","Salado"] },
+    { n: "Provoleta con pan", t: ["Parrilla","Salado","Rápido"] },
+    { n: "Fainá con pizza", t: ["Tradicional","Rápido"] },
+    { n: "Pastel de carne", t: ["Contundente","Tradicional","Guiso","Caliente"] },
+    { n: "Canelones de verdura y ricota", t: ["Pasta","Vegetariano","Elaborado"] },
+    { n: "Sorrentinos con salsa rosa", t: ["Pasta","Contundente"] },
+    { n: "Ensalada tibia de pollo", t: ["Liviano","Ensalada","Caliente"] },
+    { n: "Pollo al limón con arroz", t: ["Liviano","Caliente"] },
+    { n: "Omelette de queso y verdura", t: ["Vegetariano","Rápido","Salado"] },
+    { n: "Empanadas árabes (fatay)", t: ["Salado","Tradicional","Masas"] },
+    { n: "Puchero criollo", t: ["Contundente","Tradicional","Elaborado","Caliente"] },
+  ]
+};
+
+const STORAGE_KEY = "planner_meals_v1";
+
+let state = {
+  names: { p1: "Persona 1", p2: "Persona 2" },
+  gustos: [],
+  plan: {} // key: `${dia}|${comida}|${persona}` -> receta name
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { state = Object.assign(state, JSON.parse(raw)); }
+  } catch (e) { /* ignore */ }
+}
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function renderGustos() {
+  const c = document.getElementById("gustoChips");
+  c.innerHTML = "";
+  GUSTOS.forEach(g => {
+    const el = document.createElement("span");
+    el.className = "gusto-chip" + (state.gustos.includes(g) ? " active" : "");
+    el.textContent = g;
+    el.addEventListener("click", () => {
+      if (state.gustos.includes(g)) state.gustos = state.gustos.filter(x => x !== g);
+      else state.gustos = [...state.gustos, g];
+      saveState();
+      renderGustos();
+    });
+    c.appendChild(el);
+  });
+}
+
+function keyFor(d, c, p) { return `${d}|${c}|${p}`; }
+
+function renderCalendar() {
+  const cal = document.getElementById("calendar");
+  cal.innerHTML = "";
+  // top-left corner
+  const corner = document.createElement("div"); corner.className = "cell head"; corner.textContent = "";
+  cal.appendChild(corner);
+  DIAS.forEach(d => {
+    const el = document.createElement("div");
+    el.className = "cell head";
+    el.textContent = d;
+    cal.appendChild(el);
+  });
+  COMIDAS.forEach(comida => {
+    const row = document.createElement("div");
+    row.className = "cell rowlabel";
+    row.textContent = comida;
+    cal.appendChild(row);
+    DIAS.forEach(dia => {
+      const cell = document.createElement("div");
+      cell.className = "cell meal-cell";
+      PERSONAS.forEach(p => {
+        const val = state.plan[keyFor(dia, comida, p)];
+        const slot = document.createElement("div");
+        slot.className = "person-slot " + (val ? "filled" : "empty");
+        const who = document.createElement("div");
+        who.className = "who";
+        who.textContent = state.names[p] || (p === "p1" ? "Persona 1" : "Persona 2");
+        const dish = document.createElement("div");
+        dish.className = "dish";
+        dish.textContent = val || "sin elegir";
+        slot.appendChild(who);
+        slot.appendChild(dish);
+        slot.addEventListener("click", () => openModal(dia, comida, p));
+        cell.appendChild(slot);
+      });
+      cal.appendChild(cell);
+    });
+  });
+}
+
+// Modal
+let modalCtx = null;
+
+function optionsFor(comida, filterText = "") {
+  const list = RECETAS[comida] || [];
+  const q = filterText.trim().toLowerCase();
+  return list
+    .map(r => {
+      const matches = state.gustos.filter(g => r.t.includes(g)).length;
+      return { ...r, matches };
+    })
+    .filter(r => !q || r.n.toLowerCase().includes(q))
+    .sort((a, b) => b.matches - a.matches || a.n.localeCompare(b.n));
+}
+
+function renderOptions() {
+  if (!modalCtx) return;
+  const list = document.getElementById("optionList");
+  const q = document.getElementById("modalSearch").value;
+  const items = optionsFor(modalCtx.comida, q);
+  list.innerHTML = "";
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty-state">No hay recetas para esta comida.</div>';
+    return;
+  }
+  items.forEach(r => {
+    const el = document.createElement("div");
+    el.className = "option";
+    const info = document.createElement("div");
+    info.className = "info";
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = r.n;
+    const tags = document.createElement("div");
+    tags.className = "tags";
+    r.t.forEach(tag => {
+      const s = document.createElement("span");
+      s.className = "tag" + (state.gustos.includes(tag) ? " match" : "");
+      s.textContent = tag;
+      tags.appendChild(s);
+    });
+    info.appendChild(name);
+    info.appendChild(tags);
+    el.appendChild(info);
+    el.addEventListener("click", () => {
+      state.plan[keyFor(modalCtx.dia, modalCtx.comida, modalCtx.persona)] = r.n;
+      saveState();
+      closeModal();
+      renderCalendar();
+    });
+    list.appendChild(el);
+  });
+}
+
+function openModal(dia, comida, persona) {
+  modalCtx = { dia, comida, persona };
+  document.getElementById("modalTitle").textContent = `${comida} — ${dia}`;
+  const nombre = state.names[persona] || (persona === "p1" ? "Persona 1" : "Persona 2");
+  const gustoText = state.gustos.length ? ` · filtrando por: ${state.gustos.join(", ")}` : "";
+  document.getElementById("modalSubtitle").textContent = `Para ${nombre}${gustoText}`;
+  document.getElementById("modalSearch").value = "";
+  renderOptions();
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal() {
+  modalCtx = null;
+  document.getElementById("modal").classList.remove("open");
+}
+
+function pickRandom(comida) {
+  const opts = optionsFor(comida);
+  // prefer matching gustos
+  const withMatch = opts.filter(o => o.matches > 0);
+  const pool = withMatch.length ? withMatch : opts;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+document.getElementById("modalClose").addEventListener("click", closeModal);
+document.getElementById("modal").addEventListener("click", (e) => {
+  if (e.target.id === "modal") closeModal();
+});
+document.getElementById("modalSearch").addEventListener("input", renderOptions);
+document.getElementById("clearCell").addEventListener("click", () => {
+  if (!modalCtx) return;
+  delete state.plan[keyFor(modalCtx.dia, modalCtx.comida, modalCtx.persona)];
+  saveState();
+  closeModal();
+  renderCalendar();
+});
+document.getElementById("randomPick").addEventListener("click", () => {
+  if (!modalCtx) return;
+  const r = pickRandom(modalCtx.comida);
+  if (r) {
+    state.plan[keyFor(modalCtx.dia, modalCtx.comida, modalCtx.persona)] = r.n;
+    saveState();
+    closeModal();
+    renderCalendar();
+  }
+});
+
+document.getElementById("autoFill").addEventListener("click", () => {
+  DIAS.forEach(d => COMIDAS.forEach(c => PERSONAS.forEach(p => {
+    const r = pickRandom(c);
+    if (r) state.plan[keyFor(d, c, p)] = r.n;
+  })));
+  saveState();
+  renderCalendar();
+});
+
+document.getElementById("clearWeek").addEventListener("click", () => {
+  if (!confirm("¿Vaciar toda la semana?")) return;
+  state.plan = {};
+  saveState();
+  renderCalendar();
+});
+
+["p1","p2"].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener("input", (e) => {
+    state.names[id] = e.target.value || (id === "p1" ? "Persona 1" : "Persona 2");
+    saveState();
+    renderCalendar();
+  });
+});
+
+// init
+loadState();
+document.getElementById("p1").value = state.names.p1 || "";
+document.getElementById("p2").value = state.names.p2 || "";
+renderGustos();
+renderCalendar();
+</script>
+</body>
+</html>
