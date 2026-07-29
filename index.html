@@ -114,8 +114,16 @@
   .option .info { flex: 1; }
   .option .name { font-weight: 500; font-size: 14px; }
   .option .tags { font-size: 11.5px; color: var(--muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px; }
-  .option .tag { background: var(--chip); padding: 2px 8px; border-radius: 999px; }
-  .option .tag.match { background: var(--accent); color: #fff; }
+  .option .tag { background: var(--chip); padding: 2px 8px; border-radius: 999px; font-weight: 500; }
+  .option .tag.match { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+  /* Color-coded gusto tags in cells */
+  .dish-tags { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+  .dish-tag {
+    font-size: 9.5px; line-height: 1;
+    padding: 2px 5px; border-radius: 999px;
+    font-weight: 600; letter-spacing: 0.2px; white-space: nowrap;
+  }
   .empty-state { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
 
   .close-btn { background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; padding: 0 4px; }
@@ -244,6 +252,26 @@ const GUSTOS = [
   "Parrilla","Pasta","Masas","Guiso","Ensalada","Frito"
 ];
 
+// Color palette per gusto: { bg, fg }. Tuned for legibility on white cells.
+const GUSTO_COLORS = {
+  "Liviano":     { bg: "#e6f4ea", fg: "#1e6b3a" },
+  "Contundente": { bg: "#f3d9d3", fg: "#7a2e1f" },
+  "Vegetariano": { bg: "#dcedc8", fg: "#33691e" },
+  "Dulce":       { bg: "#fce4ec", fg: "#ad1457" },
+  "Salado":      { bg: "#e3ecf3", fg: "#37515f" },
+  "Frío":        { bg: "#e0f2fd", fg: "#0277bd" },
+  "Caliente":    { bg: "#ffe0d6", fg: "#bf360c" },
+  "Rápido":      { bg: "#fff8d6", fg: "#8a6d00" },
+  "Elaborado":   { bg: "#ede7f6", fg: "#4527a0" },
+  "Tradicional": { bg: "#fbe9c8", fg: "#8a5a1a" },
+  "Parrilla":    { bg: "#efe0d3", fg: "#5d4037" },
+  "Pasta":       { bg: "#ffe8cc", fg: "#c25b00" },
+  "Masas":       { bg: "#f0e6dd", fg: "#795548" },
+  "Guiso":       { bg: "#f6dfc7", fg: "#a04a1a" },
+  "Ensalada":    { bg: "#e0f0d1", fg: "#4b7f1a" },
+  "Frito":       { bg: "#ecdfd4", fg: "#6d4c2a" },
+};
+
 const RECETAS = {
   Desayuno: [
     { n: "Mate con tostadas y dulce de leche", t: ["Liviano","Tradicional","Dulce","Rápido"] },
@@ -351,19 +379,48 @@ function renderGustos() {
   c.innerHTML = "";
   GUSTOS.forEach(g => {
     const el = document.createElement("span");
-    el.className = "gusto-chip" + (state.gustos.includes(g) ? " active" : "");
+    const active = state.gustos.includes(g);
+    el.className = "gusto-chip" + (active ? " active" : "");
     el.textContent = g;
+    const col = GUSTO_COLORS[g];
+    if (col) {
+      if (active) {
+        el.style.background = col.fg;
+        el.style.color = "#fff";
+        el.style.borderColor = col.fg;
+      } else {
+        el.style.background = col.bg;
+        el.style.color = col.fg;
+        el.style.borderColor = col.bg;
+      }
+    }
     el.addEventListener("click", () => {
       if (state.gustos.includes(g)) state.gustos = state.gustos.filter(x => x !== g);
       else state.gustos = [...state.gustos, g];
       saveState();
       renderGustos();
+      renderCalendar();
     });
     c.appendChild(el);
   });
 }
 
 function keyFor(d, c, p) { return `${d}|${c}|${p}`; }
+
+function findRecipe(comida, name) {
+  return (RECETAS[comida] || []).find(r => r.n === name);
+}
+
+function makeTagEl(gusto, opts = {}) {
+  const el = document.createElement("span");
+  el.className = "dish-tag";
+  el.textContent = gusto;
+  const c = GUSTO_COLORS[gusto] || { bg: "#eef2f8", fg: "#333" };
+  el.style.background = c.bg;
+  el.style.color = c.fg;
+  if (opts.match) el.style.boxShadow = "0 0 0 1.5px " + c.fg + " inset";
+  return el;
+}
 
 function renderCalendar() {
   const cal = document.getElementById("calendar");
@@ -397,6 +454,17 @@ function renderCalendar() {
         dish.textContent = val || "sin elegir";
         slot.appendChild(who);
         slot.appendChild(dish);
+        if (val) {
+          const recipe = findRecipe(comida, val);
+          if (recipe && recipe.t.length) {
+            const tags = document.createElement("div");
+            tags.className = "dish-tags";
+            recipe.t.forEach(g => {
+              tags.appendChild(makeTagEl(g, { match: state.gustos.includes(g) }));
+            });
+            slot.appendChild(tags);
+          }
+        }
         slot.addEventListener("click", () => openModal(dia, comida, p));
         cell.appendChild(slot);
       });
@@ -444,6 +512,8 @@ function renderOptions() {
       const s = document.createElement("span");
       s.className = "tag" + (state.gustos.includes(tag) ? " match" : "");
       s.textContent = tag;
+      const col = GUSTO_COLORS[tag];
+      if (col) { s.style.background = col.bg; s.style.color = col.fg; }
       tags.appendChild(s);
     });
     info.appendChild(name);
