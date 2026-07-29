@@ -59,6 +59,12 @@
   button.ghost { background: transparent; }
   button.danger:hover { border-color: var(--danger); color: var(--danger); }
 
+  .hint {
+    font-size: 12.5px; color: var(--muted); margin: 0 0 14px; line-height: 1.5;
+    background: #fff8ec; border: 1px solid #f2e0c0; border-radius: 8px; padding: 10px 12px;
+  }
+  .hint strong { color: var(--ink); }
+
   .calendar {
     display: grid; grid-template-columns: 110px repeat(7, 1fr);
     background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
@@ -124,6 +130,10 @@
     padding: 2px 5px; border-radius: 999px;
     font-weight: 600; letter-spacing: 0.2px; white-space: nowrap;
   }
+  .leftover-badge { font-size: 11px; }
+  .person-slot.leftover { border-style: dashed; border-color: var(--warn); background: #fff8ec; }
+  .option.leftover-option { border-color: var(--warn); background: #fff8ec; }
+  .option.leftover-option:hover { border-color: var(--warn); background: #fdf0d8; }
   .empty-state { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
 
   .close-btn { background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; padding: 0 4px; }
@@ -182,6 +192,12 @@
       </div>
     </div>
   </section>
+
+  <p class="hint">
+    💡 <strong>Sugerir toda la semana</strong> usa desayunos y meriendas simples de Lunes a Viernes,
+    deja las opciones elaboradas para el fin de semana, y reutiliza la cena de la noche anterior
+    como almuerzo (🔁) cuando el plato se recalienta bien.
+  </p>
 
   <div class="calendar" id="calendar"></div>
 </main>
@@ -286,6 +302,16 @@ const RECETAS = {
     { n: "Sándwich tostado de jamón y queso", t: ["Rápido","Salado","Caliente"] },
     { n: "Avena con frutas y miel", t: ["Liviano","Dulce","Caliente"] },
     { n: "Tortilla de queso con tostadas", t: ["Contundente","Salado"] },
+    { n: "Mate con galletitas de agua y queso", t: ["Rápido","Liviano","Salado","Tradicional"] },
+    { n: "Café solo con tostadas de pan integral", t: ["Rápido","Liviano"] },
+    { n: "Fruta con yogur natural", t: ["Rápido","Liviano","Frío"] },
+    { n: "Té con pan con queso untable", t: ["Rápido","Liviano","Salado"] },
+    { n: "Cereales con leche", t: ["Rápido","Liviano","Frío","Dulce"] },
+    { n: "Mate con pan casero y manteca", t: ["Rápido","Tradicional","Liviano"] },
+    { n: "Waffles con frutos rojos", t: ["Dulce","Elaborado"] },
+    { n: "Tostado de palta y huevo poché", t: ["Elaborado","Salado","Contundente"] },
+    { n: "Pan casero recién hecho con dulce", t: ["Elaborado","Dulce","Tradicional"] },
+    { n: "Huevos benedictinos", t: ["Elaborado","Contundente","Salado"] },
   ],
   Almuerzo: [
     { n: "Milanesas con puré", t: ["Contundente","Tradicional","Caliente"] },
@@ -329,6 +355,17 @@ const RECETAS = {
     { n: "Tostadas con queso crema y mermelada", t: ["Dulce","Rápido"] },
     { n: "Budín inglés con té", t: ["Dulce","Tradicional"] },
     { n: "Chipá con mate", t: ["Salado","Tradicional","Masas"] },
+    { n: "Mate con galletitas dulces", t: ["Rápido","Liviano","Dulce","Tradicional"] },
+    { n: "Café con una fruta", t: ["Rápido","Liviano"] },
+    { n: "Tostadas con dulce de leche", t: ["Rápido","Dulce"] },
+    { n: "Mate con bizcochitos de grasa", t: ["Rápido","Liviano","Salado","Tradicional"] },
+    { n: "Licuado de frutas", t: ["Rápido","Liviano","Frío","Dulce"] },
+    { n: "Té con budín comprado", t: ["Rápido","Dulce"] },
+    { n: "Pastafrola casera", t: ["Dulce","Elaborado","Tradicional","Masas"] },
+    { n: "Lemon pie con té", t: ["Dulce","Elaborado"] },
+    { n: "Churros con chocolate caliente", t: ["Dulce","Elaborado","Frito","Caliente"] },
+    { n: "Torta rogel", t: ["Dulce","Elaborado","Tradicional"] },
+    { n: "Tarta de ricota casera", t: ["Dulce","Elaborado","Masas"] },
   ],
   Cena: [
     { n: "Pizza casera", t: ["Tradicional","Contundente"] },
@@ -358,10 +395,12 @@ const RECETAS = {
 
 const STORAGE_KEY = "planner_meals_v1";
 
+const DIAS_LABORALES = new Set(["Lunes","Martes","Miércoles","Jueves","Viernes"]);
+
 let state = {
   names: { p1: "Persona 1", p2: "Persona 2" },
   gustos: [],
-  plan: {} // key: `${dia}|${comida}|${persona}` -> receta name
+  plan: {} // key: `${dia}|${comida}|${persona}` -> { name, leftover?, from? }
 };
 
 function loadState() {
@@ -369,10 +408,24 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) { state = Object.assign(state, JSON.parse(raw)); }
   } catch (e) { /* ignore */ }
+  // migrate: legacy string values -> {name}
+  Object.keys(state.plan).forEach(k => {
+    if (typeof state.plan[k] === "string") {
+      state.plan[k] = { name: state.plan[k] };
+    }
+  });
 }
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
+
+function getPlan(k) {
+  const v = state.plan[k];
+  if (!v) return null;
+  return typeof v === "string" ? { name: v } : v;
+}
+function planName(k) { const v = getPlan(k); return v ? v.name : null; }
+function setPlan(k, name, extra = {}) { state.plan[k] = Object.assign({ name }, extra); }
 
 function renderGustos() {
   const c = document.getElementById("gustoChips");
@@ -408,7 +461,23 @@ function renderGustos() {
 function keyFor(d, c, p) { return `${d}|${c}|${p}`; }
 
 function findRecipe(comida, name) {
-  return (RECETAS[comida] || []).find(r => r.n === name);
+  const inThis = (RECETAS[comida] || []).find(r => r.n === name);
+  if (inThis) return inThis;
+  // Fallback across all comidas (used for cena leftovers reused at almuerzo)
+  for (const c of COMIDAS) {
+    const r = (RECETAS[c] || []).find(x => x.n === name);
+    if (r) return r;
+  }
+  return null;
+}
+
+// A dish reheats well as leftover if it's substantial and not fried/salad/parrilla.
+function isGoodLeftover(recipe) {
+  if (!recipe) return false;
+  const bad = ["Ensalada","Frito","Parrilla"];
+  if (recipe.t.some(x => bad.includes(x))) return false;
+  const good = ["Guiso","Pasta","Contundente","Elaborado","Tradicional"];
+  return recipe.t.some(x => good.includes(x));
 }
 
 function makeTagEl(gusto, opts = {}) {
@@ -443,15 +512,26 @@ function renderCalendar() {
       const cell = document.createElement("div");
       cell.className = "cell meal-cell";
       PERSONAS.forEach(p => {
-        const val = state.plan[keyFor(dia, comida, p)];
+        const k = keyFor(dia, comida, p);
+        const entry = getPlan(k);
+        const val = entry ? entry.name : null;
         const slot = document.createElement("div");
-        slot.className = "person-slot " + (val ? "filled" : "empty");
+        slot.className = "person-slot " + (val ? "filled" : "empty") + (val && entry.leftover ? " leftover" : "");
         const who = document.createElement("div");
         who.className = "who";
         who.textContent = state.names[p] || (p === "p1" ? "Persona 1" : "Persona 2");
         const dish = document.createElement("div");
         dish.className = "dish";
-        dish.textContent = val || "sin elegir";
+        if (val && entry.leftover) {
+          const badge = document.createElement("span");
+          badge.className = "leftover-badge";
+          badge.title = entry.from ? "Sobra de " + entry.from : "Sobra";
+          badge.textContent = "🔁 ";
+          dish.appendChild(badge);
+          dish.appendChild(document.createTextNode(val));
+        } else {
+          dish.textContent = val || "sin elegir";
+        }
         slot.appendChild(who);
         slot.appendChild(dish);
         if (val) {
@@ -488,12 +568,50 @@ function optionsFor(comida, filterText = "") {
     .sort((a, b) => b.matches - a.matches || a.n.localeCompare(b.n));
 }
 
+function leftoverSuggestion(dia, comida, persona) {
+  if (comida !== "Almuerzo") return null;
+  const idx = DIAS.indexOf(dia);
+  if (idx <= 0) return null;
+  const prev = DIAS[idx - 1];
+  const prevCena = planName(keyFor(prev, "Cena", persona));
+  if (!prevCena) return null;
+  const rec = findRecipe("Cena", prevCena);
+  if (!isGoodLeftover(rec)) return null;
+  return { name: prevCena, from: prev + " (cena)" };
+}
+
 function renderOptions() {
   if (!modalCtx) return;
   const list = document.getElementById("optionList");
   const q = document.getElementById("modalSearch").value;
   const items = optionsFor(modalCtx.comida, q);
   list.innerHTML = "";
+
+  const leftover = leftoverSuggestion(modalCtx.dia, modalCtx.comida, modalCtx.persona);
+  if (leftover && !q) {
+    const el = document.createElement("div");
+    el.className = "option leftover-option";
+    const info = document.createElement("div");
+    info.className = "info";
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = "🔁 Reusar de anoche: " + leftover.name;
+    const sub = document.createElement("div");
+    sub.className = "tags";
+    sub.style.color = "var(--muted)";
+    sub.textContent = "Sobra de " + leftover.from;
+    info.appendChild(name);
+    info.appendChild(sub);
+    el.appendChild(info);
+    el.addEventListener("click", () => {
+      setPlan(keyFor(modalCtx.dia, modalCtx.comida, modalCtx.persona), leftover.name, { leftover: true, from: leftover.from });
+      saveState();
+      closeModal();
+      renderCalendar();
+    });
+    list.appendChild(el);
+  }
+
   if (items.length === 0) {
     list.innerHTML = '<div class="empty-state">No hay recetas para esta comida.</div>';
     return;
@@ -520,7 +638,7 @@ function renderOptions() {
     info.appendChild(tags);
     el.appendChild(info);
     el.addEventListener("click", () => {
-      state.plan[keyFor(modalCtx.dia, modalCtx.comida, modalCtx.persona)] = r.n;
+      setPlan(keyFor(modalCtx.dia, modalCtx.comida, modalCtx.persona), r.n);
       saveState();
       closeModal();
       renderCalendar();
@@ -544,9 +662,13 @@ function closeModal() {
   document.getElementById("modal").classList.remove("open");
 }
 
-function pickRandom(comida) {
-  const opts = optionsFor(comida);
-  // prefer matching gustos
+function pickRandom(comida, dia) {
+  let opts = optionsFor(comida);
+  // Weekday breakfast/snack: keep it simple. Weekend: no restriction.
+  if (dia && DIAS_LABORALES.has(dia) && (comida === "Desayuno" || comida === "Merienda")) {
+    const easy = opts.filter(r => (r.t.includes("Rápido") || r.t.includes("Liviano")) && !r.t.includes("Elaborado"));
+    if (easy.length) opts = easy;
+  }
   const withMatch = opts.filter(o => o.matches > 0);
   const pool = withMatch.length ? withMatch : opts;
   return pool[Math.floor(Math.random() * pool.length)];
@@ -566,9 +688,9 @@ document.getElementById("clearCell").addEventListener("click", () => {
 });
 document.getElementById("randomPick").addEventListener("click", () => {
   if (!modalCtx) return;
-  const r = pickRandom(modalCtx.comida);
+  const r = pickRandom(modalCtx.comida, modalCtx.dia);
   if (r) {
-    state.plan[keyFor(modalCtx.dia, modalCtx.comida, modalCtx.persona)] = r.n;
+    setPlan(keyFor(modalCtx.dia, modalCtx.comida, modalCtx.persona), r.n);
     saveState();
     closeModal();
     renderCalendar();
@@ -576,10 +698,25 @@ document.getElementById("randomPick").addEventListener("click", () => {
 });
 
 document.getElementById("autoFill").addEventListener("click", () => {
-  DIAS.forEach(d => COMIDAS.forEach(c => PERSONAS.forEach(p => {
-    const r = pickRandom(c);
-    if (r) state.plan[keyFor(d, c, p)] = r.n;
-  })));
+  const LEFTOVER_CHANCE = 0.4;
+  DIAS.forEach((dia, dayIdx) => {
+    COMIDAS.forEach(comida => {
+      PERSONAS.forEach(p => {
+        // Almuerzo: try reusing yesterday's cena if it reheats well.
+        if (comida === "Almuerzo" && dayIdx > 0) {
+          const prev = DIAS[dayIdx - 1];
+          const prevCena = planName(keyFor(prev, "Cena", p));
+          const rec = prevCena ? findRecipe("Cena", prevCena) : null;
+          if (rec && isGoodLeftover(rec) && Math.random() < LEFTOVER_CHANCE) {
+            setPlan(keyFor(dia, comida, p), prevCena, { leftover: true, from: prev + " (cena)" });
+            return;
+          }
+        }
+        const r = pickRandom(comida, dia);
+        if (r) setPlan(keyFor(dia, comida, p), r.n);
+      });
+    });
+  });
   saveState();
   renderCalendar();
 });
@@ -648,15 +785,17 @@ function buildSummaryTable() {
     DIAS.forEach(dia => {
       const td = document.createElement("td");
       PERSONAS.forEach((p, i) => {
-        const val = state.plan[keyFor(dia, comida, p)];
+        const entry = getPlan(keyFor(dia, comida, p));
         const line = document.createElement("div");
         if (i > 0) line.style.marginTop = "4px";
         const who = document.createElement("span");
         who.className = "who-tag";
         who.textContent = nameOf(p) + ": ";
         const dish = document.createElement("span");
-        if (val) { dish.className = "dish-name"; dish.textContent = val; }
-        else { dish.className = "empty"; dish.textContent = "—"; }
+        if (entry) {
+          dish.className = "dish-name";
+          dish.textContent = (entry.leftover ? "🔁 " : "") + entry.name;
+        } else { dish.className = "empty"; dish.textContent = "—"; }
         line.appendChild(who);
         line.appendChild(dish);
         td.appendChild(line);
@@ -677,8 +816,8 @@ function summaryAsText() {
   COMIDAS.forEach(comida => {
     lines.push(`== ${comida} ==`);
     DIAS.forEach(dia => {
-      const a = state.plan[keyFor(dia, comida, "p1")] || "—";
-      const b = state.plan[keyFor(dia, comida, "p2")] || "—";
+      const a = planName(keyFor(dia, comida, "p1")) || "—";
+      const b = planName(keyFor(dia, comida, "p2")) || "—";
       lines.push(`  ${dia}: ${nameOf("p1")}: ${a} | ${nameOf("p2")}: ${b}`);
     });
     lines.push("");
@@ -692,8 +831,8 @@ function summaryAsCsv() {
   rows.push(["Comida","Día",nameOf("p1"),nameOf("p2")].map(esc).join(","));
   COMIDAS.forEach(comida => {
     DIAS.forEach(dia => {
-      const a = state.plan[keyFor(dia, comida, "p1")] || "";
-      const b = state.plan[keyFor(dia, comida, "p2")] || "";
+      const a = planName(keyFor(dia, comida, "p1")) || "";
+      const b = planName(keyFor(dia, comida, "p2")) || "";
       rows.push([comida, dia, a, b].map(esc).join(","));
     });
   });
