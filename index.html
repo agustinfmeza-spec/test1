@@ -126,6 +126,24 @@
     main { padding: 16px; }
     header { padding: 18px; }
   }
+
+  /* Summary table */
+  .summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .summary-table th, .summary-table td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .summary-table th { background: #f0f4fa; font-weight: 600; color: var(--muted); text-transform: uppercase; font-size: 11.5px; letter-spacing: 0.5px; }
+  .summary-table td .who-tag { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .summary-table td .dish-name { font-weight: 500; }
+  .summary-table td .empty { color: var(--muted); font-style: italic; }
+
+  /* Print: only show the summary table */
+  @media print {
+    body * { visibility: hidden; }
+    #exportBody, #exportBody * { visibility: visible; }
+    #exportBody { position: absolute; inset: 0; padding: 20px; }
+    .modal-backdrop { background: transparent !important; position: static !important; display: block !important; }
+    .modal { box-shadow: none !important; max-height: none !important; }
+    .modal-header, .modal-footer { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -151,7 +169,8 @@
       <label>Acciones</label>
       <div class="buttons">
         <button class="primary" id="autoFill">🎲 Sugerir toda la semana</button>
-        <button class="danger" id="clearWeek">Limpiar semana</button>
+        <button id="exportBtn">📋 Exportar resumen</button>
+        <button class="danger" id="clearWeek">🗑 Limpiar semana</button>
       </div>
     </div>
   </section>
@@ -175,6 +194,41 @@
     <div class="modal-footer">
       <button id="clearCell" class="danger ghost">Vaciar esta comida</button>
       <button id="randomPick" class="primary">🎲 Elegir al azar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="exportModal">
+  <div class="modal" style="max-width: 900px;">
+    <div class="modal-header">
+      <div>
+        <h2>Resumen semanal</h2>
+        <div class="subtitle">Copiá, descargá como CSV o imprimí</div>
+      </div>
+      <button class="close-btn" id="exportClose">×</button>
+    </div>
+    <div class="modal-body" id="exportBody"></div>
+    <div class="modal-footer">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="copyText">📄 Copiar como texto</button>
+        <button id="downloadCsv">⬇ Descargar CSV</button>
+        <button id="printSummary" class="primary">🖨 Imprimir / Guardar PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal" style="max-width: 380px;">
+    <div class="modal-header">
+      <div>
+        <h2 id="confirmTitle">¿Confirmar?</h2>
+        <div class="subtitle" id="confirmMsg"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;">
+      <button id="confirmCancel">Cancelar</button>
+      <button id="confirmOk" class="primary">Sí, continuar</button>
     </div>
   </div>
 </div>
@@ -461,10 +515,169 @@ document.getElementById("autoFill").addEventListener("click", () => {
 });
 
 document.getElementById("clearWeek").addEventListener("click", () => {
-  if (!confirm("¿Vaciar toda la semana?")) return;
-  state.plan = {};
-  saveState();
-  renderCalendar();
+  askConfirm("Limpiar semana", "Se van a borrar todas las comidas planificadas. ¿Confirmás?", () => {
+    state.plan = {};
+    saveState();
+    renderCalendar();
+  });
+});
+
+// Custom confirm (native confirm() is blocked in some iframes)
+let confirmCb = null;
+function askConfirm(title, message, onOk) {
+  document.getElementById("confirmTitle").textContent = title;
+  document.getElementById("confirmMsg").textContent = message;
+  confirmCb = onOk;
+  document.getElementById("confirmModal").classList.add("open");
+}
+document.getElementById("confirmCancel").addEventListener("click", () => {
+  confirmCb = null;
+  document.getElementById("confirmModal").classList.remove("open");
+});
+document.getElementById("confirmOk").addEventListener("click", () => {
+  const cb = confirmCb;
+  confirmCb = null;
+  document.getElementById("confirmModal").classList.remove("open");
+  if (cb) cb();
+});
+document.getElementById("confirmModal").addEventListener("click", (e) => {
+  if (e.target.id === "confirmModal") {
+    confirmCb = null;
+    document.getElementById("confirmModal").classList.remove("open");
+  }
+});
+
+// Export summary
+function nameOf(p) { return state.names[p] || (p === "p1" ? "Persona 1" : "Persona 2"); }
+
+function buildSummaryTable() {
+  const wrap = document.createElement("div");
+  const title = document.createElement("h3");
+  title.style.margin = "0 0 10px";
+  title.textContent = `Semana de ${nameOf("p1")} y ${nameOf("p2")}`;
+  wrap.appendChild(title);
+
+  const table = document.createElement("table");
+  table.className = "summary-table";
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+  ["", ...DIAS].forEach(h => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  COMIDAS.forEach(comida => {
+    const tr = document.createElement("tr");
+    const th = document.createElement("th");
+    th.textContent = comida;
+    tr.appendChild(th);
+    DIAS.forEach(dia => {
+      const td = document.createElement("td");
+      PERSONAS.forEach((p, i) => {
+        const val = state.plan[keyFor(dia, comida, p)];
+        const line = document.createElement("div");
+        if (i > 0) line.style.marginTop = "4px";
+        const who = document.createElement("span");
+        who.className = "who-tag";
+        who.textContent = nameOf(p) + ": ";
+        const dish = document.createElement("span");
+        if (val) { dish.className = "dish-name"; dish.textContent = val; }
+        else { dish.className = "empty"; dish.textContent = "—"; }
+        line.appendChild(who);
+        line.appendChild(dish);
+        td.appendChild(line);
+      });
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function summaryAsText() {
+  const lines = [];
+  lines.push(`Semana de ${nameOf("p1")} y ${nameOf("p2")}`);
+  lines.push("");
+  COMIDAS.forEach(comida => {
+    lines.push(`== ${comida} ==`);
+    DIAS.forEach(dia => {
+      const a = state.plan[keyFor(dia, comida, "p1")] || "—";
+      const b = state.plan[keyFor(dia, comida, "p2")] || "—";
+      lines.push(`  ${dia}: ${nameOf("p1")}: ${a} | ${nameOf("p2")}: ${b}`);
+    });
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+
+function summaryAsCsv() {
+  const esc = v => `"${String(v).replace(/"/g, '""')}"`;
+  const rows = [];
+  rows.push(["Comida","Día",nameOf("p1"),nameOf("p2")].map(esc).join(","));
+  COMIDAS.forEach(comida => {
+    DIAS.forEach(dia => {
+      const a = state.plan[keyFor(dia, comida, "p1")] || "";
+      const b = state.plan[keyFor(dia, comida, "p2")] || "";
+      rows.push([comida, dia, a, b].map(esc).join(","));
+    });
+  });
+  return rows.join("\n");
+}
+
+function openExport() {
+  const body = document.getElementById("exportBody");
+  body.innerHTML = "";
+  body.appendChild(buildSummaryTable());
+  document.getElementById("exportModal").classList.add("open");
+}
+document.getElementById("exportBtn").addEventListener("click", openExport);
+document.getElementById("exportClose").addEventListener("click", () => {
+  document.getElementById("exportModal").classList.remove("open");
+});
+document.getElementById("exportModal").addEventListener("click", (e) => {
+  if (e.target.id === "exportModal") document.getElementById("exportModal").classList.remove("open");
+});
+
+document.getElementById("copyText").addEventListener("click", async () => {
+  const text = summaryAsText();
+  try {
+    await navigator.clipboard.writeText(text);
+    flashBtn("copyText", "✓ Copiado");
+  } catch (e) {
+    // fallback
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); flashBtn("copyText", "✓ Copiado"); }
+    catch (_) { flashBtn("copyText", "No se pudo copiar"); }
+    document.body.removeChild(ta);
+  }
+});
+
+function flashBtn(id, msg) {
+  const b = document.getElementById(id);
+  const prev = b.textContent;
+  b.textContent = msg;
+  setTimeout(() => { b.textContent = prev; }, 1400);
+}
+
+document.getElementById("downloadCsv").addEventListener("click", () => {
+  const blob = new Blob(["﻿" + summaryAsCsv()], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `plan-comidas-${nameOf("p1")}-${nameOf("p2")}.csv`.replace(/\s+/g, "_");
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+document.getElementById("printSummary").addEventListener("click", () => {
+  window.print();
 });
 
 ["p1","p2"].forEach(id => {
