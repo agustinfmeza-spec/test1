@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Generador de presupuestos fotográficos</title>
+<style>
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 300; font-display: swap; src: url('vendor/fonts/archivo-latin-300-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400; font-display: swap; src: url('vendor/fonts/archivo-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 500; font-display: swap; src: url('vendor/fonts/archivo-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 600; font-display: swap; src: url('vendor/fonts/archivo-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 700; font-display: swap; src: url('vendor/fonts/archivo-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 900; font-display: swap; src: url('vendor/fonts/archivo-latin-900-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: italic; font-weight: 400; font-display: swap; src: url('vendor/fonts/archivo-latin-400-italic.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: italic; font-weight: 500; font-display: swap; src: url('vendor/fonts/archivo-latin-500-italic.woff2') format('woff2'); }
+  :root {
+    --bg: #f4f1ec;
+    --panel: #ffffff;
+    --ink: #16181c;
+    --muted: #6c7280;
+    --line: #e6e2da;
+    --accent: #16181c;
+    --accent-soft: #eceae4;
+    --danger: #b3432f;
+    --chip: #f0eee8;
+    --shadow: 0 2px 10px rgba(20, 20, 20, 0.06);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+  header.top {
+    padding: 20px 24px; display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); background: var(--panel);
+    position: sticky; top: 0; z-index: 40;
+  }
+  header.top h1 { font-size: 17px; margin: 0; letter-spacing: -0.02em; }
+  header.top .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+  /* Segmented toggle (module switch) */
+  .segmented {
+    display: inline-flex; padding: 3px; background: var(--chip); border: 1px solid var(--line);
+    border-radius: 12px; gap: 2px;
+  }
+  .segmented button {
+    border: none; background: transparent; padding: 8px 16px; font-family: inherit;
+    font-size: 13px; font-weight: 600; color: var(--muted); border-radius: 9px; cursor: pointer;
+    transition: all .15s ease; white-space: nowrap;
+  }
+  .segmented button.active {
+    background: linear-gradient(to bottom, #2a2c31, #0e0f12); color: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
+
+  main.layout {
+    display: grid; grid-template-columns: minmax(320px, 480px) 1fr; gap: 22px;
+    padding: 22px 24px 80px; max-width: 1680px; margin: 0 auto; align-items: start;
+  }
+  @media (max-width: 1050px) { main.layout { grid-template-columns: 1fr; } }
+
+  /* --- Nested-border "texture card" (cult-ui inspired) for the form UI --- */
+  .tcard {
+    border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.7);
+    background: linear-gradient(to bottom, #fafaf8, #f1efe9);
+    margin-bottom: 16px;
+  }
+  .tcard > .tcard-l1 { border-radius: calc(var(--radius) - 1px); border: 1px solid rgba(0,0,0,0.06); }
+  .tcard > .tcard-l1 > .tcard-l2 { border-radius: calc(var(--radius) - 2px); border: 1px solid rgba(255,255,255,0.6); }
+  .tcard > .tcard-l1 > .tcard-l2 > .tcard-l3 {
+    border-radius: calc(var(--radius) - 3px); border: 1px solid rgba(0,0,0,0.05);
+    background: var(--panel); padding: 16px 18px;
+  }
+  .tcard h2 {
+    font-size: 12px; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; color: var(--ink);
+  }
+  .tcard .tcard-hint { font-size: 11.5px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+
+  label.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  label.field span.lbl {
+    font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+  }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  input, select, textarea {
+    font-family: inherit; font-size: 13.5px; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 9px; background: #fff; color: var(--ink); width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: #b9b3a6; }
+  textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
+
+  /* Tactile buttons (cult-ui texture-button inspired) */
+  .btn {
+    border: none; padding: 1px; border-radius: 11px; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn > span {
+    display: flex; align-items: center; gap: 6px; padding: 9px 15px; border-radius: 10px;
+    transition: filter .15s ease;
+  }
+  .btn:hover > span { filter: brightness(1.06); }
+  .btn:active > span { filter: brightness(0.94); }
+  .btn.primary { background: linear-gradient(to bottom, rgba(0,0,0,.6), #000); }
+  .btn.primary > span { background: linear-gradient(to bottom, #2a2c31, #0e0f12); color: #fff; }
+  .btn.ghost { background: rgba(0,0,0,.08); }
+  .btn.ghost > span { background: linear-gradient(to bottom, #fff, #f3f1eb); color: var(--ink); }
+  .btn.danger { background: rgba(179,67,47,.25); }
+  .btn.danger > span { background: linear-gradient(to bottom, #fdf1ee, #fbe4de); color: var(--danger); }
+  .btn.sm > span { padding: 6px 10px; font-size: 12px; }
+  .btn.block { display: flex; width: 100%; } .btn.block > span { width: 100%; justify-content: center; }
+
+  .item-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: #fbfaf7; }
+  .item-row .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .item-row .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .item-row-foot { display: flex; justify-content: space-between; align-items: center; }
+  .item-row-foot .subtotal { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+
+  .block-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: #fbfaf7; }
+  .block-row input { margin-bottom: 6px; }
+
+  .hidden { display: none !important; }
+
+  /* ============== PREVIEW (matches Figma "Presu" reference) ============== */
+  .preview-wrap { position: sticky; top: 90px; }
+  #previewArea {
+    border-radius: 22px; overflow: hidden; box-shadow: 0 18px 50px rgba(30,15,5,0.18);
+    position: relative; color: #0a0d12;
+    background:
+      radial-gradient(ellipse 900px 700px at 12% 6%, #ffe3bb 0%, transparent 60%),
+      radial-gradient(ellipse 900px 900px at 90% 100%, #e98c6c 0%, transparent 60%),
+      radial-gradient(ellipse 700px 700px at 70% 30%, #f4b79a 0%, transparent 65%),
+      linear-gradient(135deg, #fff3de 0%, #f0a888 100%);
+  }
+  #previewArea::after {
+    content: ""; position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: multiply; pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  #previewArea .pv-inner { position: relative; z-index: 1; padding: 34px 34px 30px; }
+
+  .pv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+    border-bottom: 2px solid #0a0d12; padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+  .pv-brand-name { font-weight: 900; font-size: clamp(22px, 3vw, 30px); text-transform: uppercase;
+    letter-spacing: -0.03em; line-height: 1; margin: 0; }
+  .pv-brand-tag { font-weight: 500; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.02em;
+    margin: 4px 0 0; }
+  .pv-brand-logo { max-height: 46px; max-width: 160px; object-fit: contain; margin-bottom: 6px; display: block; }
+  .pv-contact { text-align: right; font-weight: 500; font-size: 12.5px; text-transform: uppercase; line-height: 1.7; }
+  .pv-contact .arrow { margin-right: 6px; }
+
+  .pv-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+  @media (max-width: 640px) { .pv-meta { grid-template-columns: repeat(2, 1fr); } }
+  .pv-pill { background: rgba(255,255,255,0.55); border-radius: 9px; padding: 7px 11px; }
+  .pv-pill .k { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; opacity: 0.75; }
+  .pv-pill .v { font-size: 12.5px; font-weight: 600; text-transform: uppercase; margin-top: 1px; }
+
+  .pv-card {
+    background: rgba(255,255,255,0.24); border: 1px solid rgba(255,255,255,0.55);
+    border-radius: 14px; padding: 18px 20px; margin-bottom: 14px;
+  }
+  .pv-card h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; font-weight: 700;
+    letter-spacing: 0.06em; border-bottom: 1px solid rgba(10,13,18,0.25); padding-bottom: 8px; }
+
+  .pv-service-title { font-weight: 900; font-size: 15px; text-transform: uppercase; margin: 0 0 4px; }
+  .pv-service-desc { font-size: 12.8px; line-height: 1.55; margin: 0 0 10px; }
+  .pv-bullets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .pv-bullets span { font-size: 11px; font-weight: 500; background: rgba(10,13,18,0.08); border-radius: 999px;
+    padding: 3px 10px; }
+
+  table.pv-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 4px; }
+  table.pv-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+    font-weight: 700; opacity: 0.7; padding: 0 6px 6px; border-bottom: 1px solid rgba(10,13,18,0.25); }
+  table.pv-table td { padding: 7px 6px; border-bottom: 1px solid rgba(10,13,18,0.1); }
+  table.pv-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .pv-notes { font-size: 11.8px; line-height: 1.6; margin: 10px 0 0; }
+  .pv-notes p { margin: 0 0 4px; }
+
+  .pv-totals { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(10,13,18,0.25); }
+  .pv-totals .line { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0; }
+  .pv-totals .line.total { font-weight: 900; font-size: 16px; border-top: 1px solid rgba(10,13,18,0.3);
+    margin-top: 6px; padding-top: 8px; }
+
+  .pv-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .pv-2col { grid-template-columns: 1fr; } }
+  .pv-sub { margin-bottom: 12px; }
+  .pv-sub .st { font-weight: 900; font-size: 11.5px; text-transform: uppercase; margin: 0 0 4px; }
+  .pv-sub .sb { font-size: 11.8px; line-height: 1.55; margin: 0; }
+
+  .pv-footer { text-align: center; font-size: 10.5px; opacity: 0.65; margin-top: 6px; text-transform: uppercase;
+    letter-spacing: 0.05em; }
+
+  .export-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* Modal (image export options) */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,15,15,0.5); display: none;
+    align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--panel); border-radius: 16px; width: 100%; max-width: 420px;
+    box-shadow: 0 12px 40px rgba(15,15,15,0.3); padding: 20px; }
+  .modal h2 { margin: 0 0 4px; font-size: 16px; }
+  .modal .sub { font-size: 12px; color: var(--muted); margin: 0 0 16px; }
+  .size-opt { display: flex; gap: 10px; margin-bottom: 16px; }
+  .size-opt label { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 10px; cursor: pointer;
+    font-size: 12.5px; text-align: center; }
+  .size-opt input { width: auto; margin-right: 6px; }
+  .size-opt label:has(input:checked) { border-color: #0a0d12; background: var(--accent-soft); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+  #shareCardHost { position: fixed; left: -99999px; top: 0; }
+
+  @media print {
+    body * { visibility: hidden; }
+    #previewArea, #previewArea * { visibility: visible; }
+    .preview-wrap { position: static !important; }
+    #previewArea { position: static !important; margin: 0; border-radius: 0; box-shadow: none; width: 100%; }
+    header.top, #formCol, .export-bar { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1>📸 Generador de presupuestos fotográficos</h1>
+    <div class="sub">Armá el presupuesto, mirá la vista previa y exportalo como imagen o PDF</div>
+  </div>
+  <div class="segmented" id="modeToggle">
+    <button data-mode="sesion" class="active">Sesión / Evento</button>
+    <button data-mode="cuadros">Cuadros fotográficos</button>
+  </div>
+</header>
+
+<main class="layout">
+  <div id="formCol">
+
+    <!-- Estudio -->
+    <div class="tcard"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Estudio</h2>
+      <div class="row2">
+        <label class="field"><span class="lbl">Nombre del estudio</span><input id="f-estudioNombre" placeholder="Tu Estudio"></label>
+        <label class="field"><span class="lbl">Rubro / tagline</span><input id="f-estudioRubro" placeholder="Fotografía de retrato"></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span class="lbl">Teléfono</span><input id="f-estudioTelefono" placeholder="11-0000.0000"></label>
+        <label class="field"><span class="lbl">Email o Instagram</span><input id="f-estudioContacto" placeholder="@tuestudio"></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span class="lbl">Moneda</span>
+          <select id="f-moneda">
+            <option value="ARS">ARS — Peso argentino</option>
+            <option value="USD">USD — Dólar</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="OTRA">Otra (símbolo libre)</option>
+          </select>
+        </label>
+        <label class="field" id="f-monedaOtraWrap"><span class="lbl">Símbolo</span><input id="f-monedaOtra" placeholder="$"></label>
+      </div>
+      <label class="field"><span class="lbl">Logo (URL de imagen, opcional)</span><input id="f-logo" placeholder="https://..."></label>
+    </div></div></div></div>
+
+    <!-- Cliente y fechas -->
+    <div class="tcard"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Cliente y fechas</h2>
+      <div class="row2">
+        <label class="field"><span class="lbl">Cliente</span><input id="f-clienteNombre" placeholder="Nombre del cliente"></label>
+        <label class="field"><span class="lbl">Contacto del cliente</span><input id="f-clienteContacto" placeholder="Tel / email"></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span class="lbl">Fecha de confección</span><input type="date" id="f-fecha"></label>
+        <label class="field"><span class="lbl">Validez (días)</span><input type="number" id="f-validezDias" min="1" value="15"></label>
+      </div>
+      <label class="field"><span class="lbl">Seña / anticipo (%)</span><input type="number" id="f-senaPct" min="0" max="100" value="50"></label>
+    </div></div></div></div>
+
+    <!-- Módulo SESIÓN -->
+    <div class="tcard" id="form-sesion"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Servicio (sesión / evento)</h2>
+      <label class="field"><span class="lbl">Título del servicio</span><input id="f-sTitulo" placeholder="Ej: Book fotográfico / Cobertura de boda"></label>
+      <label class="field"><span class="lbl">Descripción</span><textarea id="f-sDescripcion" placeholder="Detalle del servicio, locación, cantidad de cámaras, etc."></textarea></label>
+      <label class="field"><span class="lbl">Incluye (una línea por ítem)</span><textarea id="f-sBullets" placeholder="Planificación y scouting&#10;Shooting de 2 a 4 h&#10;Retoque avanzado de 15 imágenes"></textarea></label>
+      <div class="lbl" style="margin-bottom:8px;">Ítems del presupuesto</div>
+      <div id="sesionItems"></div>
+      <button class="btn ghost sm" id="addSesionItem"><span>➕ Agregar ítem</span></button>
+      <label class="field" style="margin-top:12px;"><span class="lbl">Descuento / bonificación (%)</span><input type="number" id="f-sDescuento" min="0" max="100" value="0"></label>
+      <label class="field"><span class="lbl">Notas del desglose (una línea por nota)</span><textarea id="f-sNotas" placeholder="* Sesión de máximo 4 horas en hasta 3 locaciones.&#10;* Selección de 15 fotografías para edición avanzada."></textarea></label>
+    </div></div></div></div>
+
+    <!-- Módulo CUADROS -->
+    <div class="tcard hidden" id="form-cuadros"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Cuadros fotográficos</h2>
+      <p class="tcard-hint">Cada línea es una pieza: tamaño, material, marco/terminación, cantidad y precio unitario.</p>
+      <div id="cuadrosItems"></div>
+      <button class="btn ghost sm" id="addCuadroItem"><span>➕ Agregar pieza</span></button>
+      <label class="field" style="margin-top:12px;"><span class="lbl">Descuento / bonificación (%)</span><input type="number" id="f-cDescuento" min="0" max="100" value="0"></label>
+      <label class="field"><span class="lbl">Notas del desglose (una línea por nota)</span><textarea id="f-cNotas" placeholder="* Los tiempos de producción son de 7 días hábiles.&#10;* El envío se cotiza aparte según destino."></textarea></label>
+    </div></div></div></div>
+
+    <!-- Entregables -->
+    <div class="tcard"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Entregables</h2>
+      <div id="entregablesList"></div>
+      <button class="btn ghost sm" id="addEntregable"><span>➕ Agregar bloque</span></button>
+    </div></div></div></div>
+
+    <!-- Forma de trabajo -->
+    <div class="tcard"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Forma de trabajo</h2>
+      <div id="formaTrabajoList"></div>
+      <button class="btn ghost sm" id="addFormaTrabajo"><span>➕ Agregar bloque</span></button>
+    </div></div></div></div>
+
+    <button class="btn danger block" id="resetAll"><span>🗑 Reiniciar todo</span></button>
+  </div>
+
+  <div class="preview-wrap">
+    <div id="previewArea"><div class="pv-inner" id="pvInner"></div></div>
+    <div class="export-bar">
+      <button class="btn primary" id="openImageExport"><span>🖼 Exportar imagen (redes)</span></button>
+      <button class="btn ghost" id="exportPdf"><span>📄 Exportar PDF</span></button>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: export imagen -->
+<div class="modal-backdrop" id="imgModal">
+  <div class="modal">
+    <h2>Exportar imagen</h2>
+    <p class="sub">Elegí el formato para redes sociales</p>
+    <div class="size-opt">
+      <label><input type="radio" name="imgSize" value="post" checked> Post<br>1080×1350</label>
+      <label><input type="radio" name="imgSize" value="story"> Story<br>1080×1920</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost sm" id="imgModalCancel"><span>Cancelar</span></button>
+      <button class="btn primary sm" id="imgModalGo"><span>⬇ Descargar PNG</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: confirm -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <h2 id="confirmTitle">¿Confirmar?</h2>
+    <p class="sub" id="confirmMsg"></p>
+    <div class="modal-actions">
+      <button class="btn ghost sm" id="confirmCancel"><span>Cancelar</span></button>
+      <button class="btn danger sm" id="confirmOk"><span>Sí, continuar</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="shareCardHost"></div>
+
+<script src="vendor/html2canvas.min.js"></script>
+<script>
+const STORAGE_KEY = "presupuestos_fotograficos_v1";
+const CUR_SYMBOLS = { ARS: "ARS $", USD: "US$", EUR: "€" };
+
+function uid() { return Math.random().toString(36).slice(2, 9); }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+function defaultState() {
+  return {
+    mode: "sesion",
+    estudio: { nombre: "", rubro: "", telefono: "", contacto: "", moneda: "ARS", monedaOtra: "$", logo: "" },
+    cliente: { nombre: "", contacto: "" },
+    fecha: todayISO(),
+    validezDias: 15,
+    senaPct: 50,
+    sesion: {
+      titulo: "Book fotográfico",
+      descripcion: "Sesión en locación a definir con el cliente. Producción y edición incluidas.",
+      bullets: ["Planificación y scouting", "Shooting de 2 a 4 h", "Retoque avanzado de 15 imágenes"],
+      items: [
+        { id: uid(), concepto: "Sesión fotográfica (2 a 4 h)", cantidad: 1, precio: 120000 },
+        { id: uid(), concepto: "Retoque avanzado (15 imágenes)", cantidad: 1, precio: 23000 }
+      ],
+      descuentoPct: 0,
+      notas: ["* Selección de hasta 15 fotografías para edición avanzada.", "* Locación a coordinar con el cliente; gastos puntuales se detallan aparte."]
+    },
+    cuadros: {
+      items: [
+        { id: uid(), tamano: "30x40 cm", material: "Canvas", marco: "Marco flotante negro", cantidad: 2, precio: 18000 },
+        { id: uid(), tamano: "40x60 cm", material: "Papel Fine Art", marco: "Sin marco", cantidad: 1, precio: 22000 }
+      ],
+      descuentoPct: 0,
+      notas: ["* Los tiempos de producción son de 7 días hábiles desde la aprobación.", "* El envío a domicilio se cotiza aparte según destino."]
+    },
+    entregables: {
+      sesion: [
+        { id: uid(), titulo: "Carpeta de proyecto", cuerpo: "Fotografías crudas y editadas en alta resolución. Entrega digital mediante enlace con 3 días de validez para su descarga." },
+        { id: uid(), titulo: "Planificación", cuerpo: "La conceptualización se comparte con el cliente a modo referencial y es de carácter confidencial." },
+        { id: uid(), titulo: "Derechos de autoría", cuerpo: "El estudio conserva los derechos de autor de las imágenes y puede utilizarlas con fines de difusión y portfolio." }
+      ],
+      cuadros: [
+        { id: uid(), titulo: "Producción", cuerpo: "Impresión y armado de cada pieza según tamaño, material y terminación seleccionados." },
+        { id: uid(), titulo: "Tiempos de entrega", cuerpo: "El plazo de producción comienza tras la aprobación del presupuesto y el pago de la seña." },
+        { id: uid(), titulo: "Envío / retiro", cuerpo: "Las piezas pueden retirarse en el estudio o enviarse a domicilio; el costo de envío se cotiza aparte." }
+      ]
+    },
+    formaTrabajo: [
+      { id: uid(), titulo: "Inicio", cuerpo: "Una vez aprobado el presupuesto y recibida la seña, se coordina la fecha de trabajo." },
+      { id: uid(), titulo: "Pago", cuerpo: "La seña corresponde al porcentaje indicado del total; el saldo se abona contra entrega." },
+      { id: uid(), titulo: "Finalización", cuerpo: "El proyecto se da por finalizado con la entrega exitosa dentro del plazo establecido." },
+      { id: uid(), titulo: "Modificaciones", cuerpo: "De solicitarse cambios sustanciales luego de aprobado el presupuesto, los valores podrían variar." }
+    ]
+  };
+}
+
+let state = defaultState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = Object.assign(defaultState(), JSON.parse(raw));
+  } catch (e) { /* ignore */ }
+}
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function moneySymbol() {
+  return state.estudio.moneda === "OTRA" ? (state.estudio.monedaOtra || "$") : (CUR_SYMBOLS[state.estudio.moneda] || "$");
+}
+function fmtMoney(n) {
+  const num = Number(n) || 0;
+  return moneySymbol() + " " + num.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtDate(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+function addDays(iso, days) {
+  const dt = new Date(iso + "T00:00:00");
+  dt.setDate(dt.getDate() + Number(days || 0));
+  return dt.toISOString().slice(0, 10);
+}
+
+// ---------- bindings: simple fields ----------
+function bindSimpleFields() {
+  const map = [
+    ["f-estudioNombre", () => state.estudio.nombre, v => state.estudio.nombre = v],
+    ["f-estudioRubro", () => state.estudio.rubro, v => state.estudio.rubro = v],
+    ["f-estudioTelefono", () => state.estudio.telefono, v => state.estudio.telefono = v],
+    ["f-estudioContacto", () => state.estudio.contacto, v => state.estudio.contacto = v],
+    ["f-monedaOtra", () => state.estudio.monedaOtra, v => state.estudio.monedaOtra = v],
+    ["f-logo", () => state.estudio.logo, v => state.estudio.logo = v],
+    ["f-clienteNombre", () => state.cliente.nombre, v => state.cliente.nombre = v],
+    ["f-clienteContacto", () => state.cliente.contacto, v => state.cliente.contacto = v],
+    ["f-fecha", () => state.fecha, v => state.fecha = v],
+    ["f-validezDias", () => state.validezDias, v => state.validezDias = Number(v) || 0],
+    ["f-senaPct", () => state.senaPct, v => state.senaPct = Number(v) || 0],
+    ["f-sTitulo", () => state.sesion.titulo, v => state.sesion.titulo = v],
+    ["f-sDescripcion", () => state.sesion.descripcion, v => state.sesion.descripcion = v],
+    ["f-sBullets", () => state.sesion.bullets.join("\n"), v => state.sesion.bullets = v.split("\n").map(s => s.trim()).filter(Boolean)],
+    ["f-sDescuento", () => state.sesion.descuentoPct, v => state.sesion.descuentoPct = Number(v) || 0],
+    ["f-sNotas", () => state.sesion.notas.join("\n"), v => state.sesion.notas = v.split("\n").map(s => s.trim()).filter(Boolean)],
+    ["f-cDescuento", () => state.cuadros.descuentoPct, v => state.cuadros.descuentoPct = Number(v) || 0],
+    ["f-cNotas", () => state.cuadros.notas.join("\n"), v => state.cuadros.notas = v.split("\n").map(s => s.trim()).filter(Boolean)],
+  ];
+  map.forEach(([id, getter, setter]) => {
+    const el = document.getElementById(id);
+    el.value = getter();
+    el.addEventListener("input", () => { setter(el.value); saveState(); renderPreview(); });
+  });
+
+  const monedaSel = document.getElementById("f-moneda");
+  monedaSel.value = state.estudio.moneda;
+  const otraWrap = document.getElementById("f-monedaOtraWrap");
+  otraWrap.style.display = state.estudio.moneda === "OTRA" ? "flex" : "none";
+  monedaSel.addEventListener("change", () => {
+    state.estudio.moneda = monedaSel.value;
+    otraWrap.style.display = monedaSel.value === "OTRA" ? "flex" : "none";
+    saveState(); renderPreview();
+  });
+}
+
+// ---------- dynamic list renderers ----------
+function renderSesionItems() {
+  const wrap = document.getElementById("sesionItems");
+  wrap.innerHTML = "";
+  state.sesion.items.forEach(it => {
+    const row = document.createElement("div");
+    row.className = "item-row";
+    row.innerHTML = `
+      <div class="grid">
+        <input data-f="concepto" placeholder="Concepto" value="${escAttr(it.concepto)}">
+      </div>
+      <div class="grid">
+        <input data-f="cantidad" type="number" min="0" placeholder="Cantidad" value="${it.cantidad}">
+        <input data-f="precio" type="number" min="0" placeholder="Precio unitario" value="${it.precio}">
+      </div>
+      <div class="item-row-foot">
+        <span class="subtotal">${fmtMoney(it.cantidad * it.precio)}</span>
+        <button class="btn danger sm" data-act="del"><span>✕</span></button>
+      </div>`;
+    row.querySelector('[data-f="concepto"]').addEventListener("input", e => { it.concepto = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="cantidad"]').addEventListener("input", e => { it.cantidad = Number(e.target.value) || 0; saveState(); renderSesionItems(); renderPreview(); });
+    row.querySelector('[data-f="precio"]').addEventListener("input", e => { it.precio = Number(e.target.value) || 0; saveState(); renderSesionItems(); renderPreview(); });
+    row.querySelector('[data-act="del"]').addEventListener("click", () => { state.sesion.items = state.sesion.items.filter(x => x.id !== it.id); saveState(); renderSesionItems(); renderPreview(); });
+    wrap.appendChild(row);
+  });
+}
+
+const MATERIALES = ["Canvas", "Madera", "PVC / Foam", "Acrílico", "Papel Fine Art"];
+const MARCOS = ["Sin marco", "Marco flotante negro", "Marco flotante blanco", "Marco clásico", "Laminado mate", "Laminado brillante"];
+
+function renderCuadrosItems() {
+  const wrap = document.getElementById("cuadrosItems");
+  wrap.innerHTML = "";
+  state.cuadros.items.forEach(it => {
+    const row = document.createElement("div");
+    row.className = "item-row";
+    row.innerHTML = `
+      <div class="grid">
+        <input data-f="tamano" placeholder="Tamaño (ej: 30x40 cm)" value="${escAttr(it.tamano)}">
+        <select data-f="material">${MATERIALES.map(m => `<option ${m === it.material ? "selected" : ""}>${m}</option>`).join("")}</select>
+      </div>
+      <div class="grid">
+        <select data-f="marco">${MARCOS.map(m => `<option ${m === it.marco ? "selected" : ""}>${m}</option>`).join("")}</select>
+        <input data-f="cantidad" type="number" min="0" placeholder="Cantidad" value="${it.cantidad}">
+      </div>
+      <div class="grid">
+        <input data-f="precio" type="number" min="0" placeholder="Precio unitario" value="${it.precio}">
+      </div>
+      <div class="item-row-foot">
+        <span class="subtotal">${fmtMoney(it.cantidad * it.precio)}</span>
+        <button class="btn danger sm" data-act="del"><span>✕</span></button>
+      </div>`;
+    row.querySelector('[data-f="tamano"]').addEventListener("input", e => { it.tamano = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="material"]').addEventListener("change", e => { it.material = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="marco"]').addEventListener("change", e => { it.marco = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="cantidad"]').addEventListener("input", e => { it.cantidad = Number(e.target.value) || 0; saveState(); renderCuadrosItems(); renderPreview(); });
+    row.querySelector('[data-f="precio"]').addEventListener("input", e => { it.precio = Number(e.target.value) || 0; saveState(); renderCuadrosItems(); renderPreview(); });
+    row.querySelector('[data-act="del"]').addEventListener("click", () => { state.cuadros.items = state.cuadros.items.filter(x => x.id !== it.id); saveState(); renderCuadrosItems(); renderPreview(); });
+    wrap.appendChild(row);
+  });
+}
+
+function renderBlockList(containerId, list, onChange) {
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = "";
+  list.forEach(b => {
+    const row = document.createElement("div");
+    row.className = "block-row";
+    row.innerHTML = `
+      <input data-f="titulo" placeholder="Título" value="${escAttr(b.titulo)}">
+      <textarea data-f="cuerpo" placeholder="Texto">${escHtml(b.cuerpo)}</textarea>
+      <button class="btn danger sm" data-act="del"><span>✕ Quitar bloque</span></button>`;
+    row.querySelector('[data-f="titulo"]').addEventListener("input", e => { b.titulo = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="cuerpo"]').addEventListener("input", e => { b.cuerpo = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-act="del"]').addEventListener("click", () => { onChange(list.filter(x => x.id !== b.id)); });
+    wrap.appendChild(row);
+  });
+}
+
+function renderEntregablesForm() {
+  const list = state.entregables[state.mode];
+  renderBlockList("entregablesList", list, (newList) => { state.entregables[state.mode] = newList; saveState(); renderEntregablesForm(); renderPreview(); });
+}
+function renderFormaTrabajoForm() {
+  renderBlockList("formaTrabajoList", state.formaTrabajo, (newList) => { state.formaTrabajo = newList; saveState(); renderFormaTrabajoForm(); renderPreview(); });
+}
+
+function escAttr(s) { return String(s || "").replace(/"/g, "&quot;"); }
+function escHtml(s) { return String(s || "").replace(/</g, "&lt;"); }
+
+// ---------- mode toggle ----------
+document.getElementById("modeToggle").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-mode]");
+  if (!btn) return;
+  state.mode = btn.dataset.mode;
+  document.querySelectorAll("#modeToggle button").forEach(b => b.classList.toggle("active", b === btn));
+  document.getElementById("form-sesion").classList.toggle("hidden", state.mode !== "sesion");
+  document.getElementById("form-cuadros").classList.toggle("hidden", state.mode !== "cuadros");
+  saveState();
+  renderEntregablesForm();
+  renderPreview();
+});
+
+// ---------- add buttons ----------
+document.getElementById("addSesionItem").addEventListener("click", () => {
+  state.sesion.items.push({ id: uid(), concepto: "", cantidad: 1, precio: 0 });
+  saveState(); renderSesionItems(); renderPreview();
+});
+document.getElementById("addCuadroItem").addEventListener("click", () => {
+  state.cuadros.items.push({ id: uid(), tamano: "20x30 cm", material: MATERIALES[0], marco: MARCOS[0], cantidad: 1, precio: 0 });
+  saveState(); renderCuadrosItems(); renderPreview();
+});
+document.getElementById("addEntregable").addEventListener("click", () => {
+  state.entregables[state.mode].push({ id: uid(), titulo: "", cuerpo: "" });
+  saveState(); renderEntregablesForm(); renderPreview();
+});
+document.getElementById("addFormaTrabajo").addEventListener("click", () => {
+  state.formaTrabajo.push({ id: uid(), titulo: "", cuerpo: "" });
+  saveState(); renderFormaTrabajoForm(); renderPreview();
+});
+
+// ---------- totals ----------
+function computeTotales() {
+  if (state.mode === "sesion") {
+    const subtotal = state.sesion.items.reduce((s, it) => s + it.cantidad * it.precio, 0);
+    const descuento = subtotal * (state.sesion.descuentoPct / 100);
+    return { subtotal, descuento, total: subtotal - descuento, pct: state.sesion.descuentoPct };
+  } else {
+    const subtotal = state.cuadros.items.reduce((s, it) => s + it.cantidad * it.precio, 0);
+    const descuento = subtotal * (state.cuadros.descuentoPct / 100);
+    return { subtotal, descuento, total: subtotal - descuento, pct: state.cuadros.descuentoPct };
+  }
+}
+
+// ---------- preview render ----------
+function renderPreview() {
+  const el = document.getElementById("pvInner");
+  const t = computeTotales();
+  const validoHasta = addDays(state.fecha, state.validezDias);
+
+  const headLogo = state.estudio.logo
+    ? `<img class="pv-brand-logo" src="${escAttr(state.estudio.logo)}" alt="logo">`
+    : "";
+
+  const serviceCard = state.mode === "sesion" ? `
+    <div class="pv-card">
+      <h3>Servicio</h3>
+      <p class="pv-service-title">${escHtml(state.sesion.titulo) || "Servicio"}</p>
+      <p class="pv-service-desc">${escHtml(state.sesion.descripcion)}</p>
+      <div class="pv-bullets">${state.sesion.bullets.map(b => `<span>${escHtml(b)}</span>`).join("")}</div>
+      <table class="pv-table">
+        <thead><tr><th>Concepto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>${state.sesion.items.map(it => `<tr><td>${escHtml(it.concepto)}</td><td class="num">${it.cantidad}</td><td class="num">${fmtMoney(it.precio)}</td><td class="num">${fmtMoney(it.cantidad * it.precio)}</td></tr>`).join("")}</tbody>
+      </table>
+      ${totalsBlock(t)}
+      ${notesBlock(state.sesion.notas)}
+    </div>` : `
+    <div class="pv-card">
+      <h3>Cuadros fotográficos</h3>
+      <table class="pv-table">
+        <thead><tr><th>Tamaño</th><th>Material</th><th>Marco</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>${state.cuadros.items.map(it => `<tr><td>${escHtml(it.tamano)}</td><td>${escHtml(it.material)}</td><td>${escHtml(it.marco)}</td><td class="num">${it.cantidad}</td><td class="num">${fmtMoney(it.precio)}</td><td class="num">${fmtMoney(it.cantidad * it.precio)}</td></tr>`).join("")}</tbody>
+      </table>
+      ${totalsBlock(t)}
+      ${notesBlock(state.cuadros.notas)}
+    </div>`;
+
+  const entregablesList = state.entregables[state.mode];
+  const entregablesCard = `
+    <div class="pv-card">
+      <h3>Entregables</h3>
+      <div class="pv-2col">
+        ${entregablesList.map(b => `<div class="pv-sub"><p class="st">${escHtml(b.titulo)}</p><p class="sb">${escHtml(b.cuerpo)}</p></div>`).join("")}
+      </div>
+    </div>`;
+
+  const formaTrabajoCard = `
+    <div class="pv-card">
+      <h3>Forma de trabajo</h3>
+      <div class="pv-2col">
+        ${state.formaTrabajo.map(b => `<div class="pv-sub"><p class="st">${escHtml(b.titulo)}</p><p class="sb">${escHtml(b.cuerpo)}</p></div>`).join("")}
+      </div>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="pv-head">
+      <div>
+        ${headLogo}
+        <p class="pv-brand-name">${escHtml(state.estudio.nombre) || "Tu Estudio"}</p>
+        <p class="pv-brand-tag">${escHtml(state.estudio.rubro) || "Fotografía"}</p>
+      </div>
+      <div class="pv-contact">
+        <div><span class="arrow">→</span>${escHtml(state.estudio.telefono)}</div>
+        <div>${escHtml(state.estudio.contacto)}</div>
+      </div>
+    </div>
+    <div class="pv-meta">
+      <div class="pv-pill"><div class="k">Cliente</div><div class="v">${escHtml(state.cliente.nombre) || "—"}</div></div>
+      <div class="pv-pill"><div class="k">Contacto</div><div class="v">${escHtml(state.cliente.contacto) || "—"}</div></div>
+      <div class="pv-pill"><div class="k">Fecha</div><div class="v">${fmtDate(state.fecha)}</div></div>
+      <div class="pv-pill"><div class="k">Válido hasta</div><div class="v">${fmtDate(validoHasta)}</div></div>
+    </div>
+    ${serviceCard}
+    ${entregablesCard}
+    ${formaTrabajoCard}
+    <p class="pv-footer">Seña del ${state.senaPct}% para confirmar · Presupuesto sujeto a modificación ante cambios de alcance</p>
+  `;
+}
+
+function totalsBlock(t) {
+  return `<div class="pv-totals">
+    <div class="line"><span>Subtotal</span><span>${fmtMoney(t.subtotal)}</span></div>
+    ${t.pct > 0 ? `<div class="line"><span>Bonificación (${t.pct}%)</span><span>-${fmtMoney(t.descuento)}</span></div>` : ""}
+    <div class="line total"><span>Total</span><span>${fmtMoney(t.total)}</span></div>
+  </div>`;
+}
+function notesBlock(notas) {
+  if (!notas || !notas.length) return "";
+  return `<div class="pv-notes">${notas.map(n => `<p>${escHtml(n)}</p>`).join("")}</div>`;
+}
+
+// ---------- reset ----------
+let confirmCb = null;
+function askConfirm(title, msg, cb) {
+  document.getElementById("confirmTitle").textContent = title;
+  document.getElementById("confirmMsg").textContent = msg;
+  confirmCb = cb;
+  document.getElementById("confirmModal").classList.add("open");
+}
+document.getElementById("confirmCancel").addEventListener("click", () => { confirmCb = null; document.getElementById("confirmModal").classList.remove("open"); });
+document.getElementById("confirmOk").addEventListener("click", () => {
+  const cb = confirmCb; confirmCb = null;
+  document.getElementById("confirmModal").classList.remove("open");
+  if (cb) cb();
+});
+document.getElementById("resetAll").addEventListener("click", () => {
+  askConfirm("Reiniciar todo", "Se van a borrar todos los datos cargados. ¿Confirmás?", () => {
+    state = defaultState();
+    saveState();
+    initForm();
+  });
+});
+
+// ---------- PDF export ----------
+document.getElementById("exportPdf").addEventListener("click", () => { window.print(); });
+
+// ---------- Image export ----------
+const imgModal = document.getElementById("imgModal");
+document.getElementById("openImageExport").addEventListener("click", () => imgModal.classList.add("open"));
+document.getElementById("imgModalCancel").addEventListener("click", () => imgModal.classList.remove("open"));
+document.getElementById("imgModalGo").addEventListener("click", async () => {
+  const size = document.querySelector('input[name="imgSize"]:checked').value;
+  imgModal.classList.remove("open");
+  await exportShareImage(size);
+});
+
+async function exportShareImage(size) {
+  const dims = size === "story" ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
+  const t = computeTotales();
+  const validoHasta = addDays(state.fecha, state.validezDias);
+  const summaryLine = state.mode === "sesion"
+    ? (state.sesion.titulo || "Servicio fotográfico")
+    : `Cuadros fotográficos × ${state.cuadros.items.reduce((s, it) => s + it.cantidad, 0)} piezas`;
+
+  const host = document.getElementById("shareCardHost");
+  host.innerHTML = `
+    <div id="shareCard" style="width:${dims.w}px;height:${dims.h}px;position:relative;overflow:hidden;
+      font-family:'Archivo',sans-serif;color:#0a0d12;
+      background:
+        radial-gradient(ellipse 1200px 900px at 12% 6%, #ffe3bb 0%, transparent 60%),
+        radial-gradient(ellipse 1200px 1200px at 90% 100%, #e98c6c 0%, transparent 60%),
+        radial-gradient(ellipse 900px 900px at 70% 30%, #f4b79a 0%, transparent 65%),
+        linear-gradient(135deg, #fff3de 0%, #f0a888 100%);">
+      <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:${dims.w * 0.07}px;box-sizing:border-box;">
+        <div>
+          ${state.estudio.logo ? `<img src="${escAttr(state.estudio.logo)}" style="max-height:70px;max-width:260px;object-fit:contain;margin-bottom:14px;" crossorigin="anonymous">` : ""}
+          <div style="font-weight:900;font-size:${dims.w * 0.062}px;text-transform:uppercase;letter-spacing:-0.03em;line-height:1;">${escHtml(state.estudio.nombre) || "Tu Estudio"}</div>
+          <div style="font-weight:500;font-size:${dims.w * 0.026}px;text-transform:uppercase;letter-spacing:0.02em;margin-top:8px;">${escHtml(state.estudio.rubro) || "Fotografía"}</div>
+        </div>
+        <div>
+          <div style="font-size:${dims.w * 0.022}px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;opacity:0.75;margin-bottom:6px;">Presupuesto</div>
+          <div style="font-weight:800;font-size:${dims.w * 0.038}px;margin-bottom:18px;max-width:90%;">${escHtml(summaryLine)}</div>
+          <div style="background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.6);border-radius:18px;padding:${dims.w * 0.04}px;margin-bottom:20px;">
+            <div style="font-size:${dims.w * 0.02}px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;opacity:0.75;">Total</div>
+            <div style="font-weight:900;font-size:${dims.w * 0.07}px;letter-spacing:-0.02em;">${fmtMoney(t.total)}</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:${dims.w * 0.022}px;font-weight:600;text-transform:uppercase;border-top:1px solid rgba(10,13,18,0.25);padding-top:14px;">
+            <span>Válido hasta ${fmtDate(validoHasta)}</span>
+            <span>${escHtml(state.estudio.telefono)} · ${escHtml(state.estudio.contacto)}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+  const node = document.getElementById("shareCard");
+  const canvas = await html2canvas(node, {
+    width: dims.w, height: dims.h, windowWidth: dims.w, windowHeight: dims.h,
+    x: 0, y: 0, scrollX: 0, scrollY: 0,
+    scale: 2, backgroundColor: null, useCORS: true
+  });
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `presupuesto-${(state.estudio.nombre || "estudio").replace(/\s+/g, "_")}-${size}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    host.innerHTML = "";
+  }, "image/png");
+}
+
+// ---------- init ----------
+function initForm() {
+  bindSimpleFields();
+  document.querySelectorAll("#modeToggle button").forEach(b => b.classList.toggle("active", b.dataset.mode === state.mode));
+  document.getElementById("form-sesion").classList.toggle("hidden", state.mode !== "sesion");
+  document.getElementById("form-cuadros").classList.toggle("hidden", state.mode !== "cuadros");
+  renderSesionItems();
+  renderCuadrosItems();
+  renderEntregablesForm();
+  renderFormaTrabajoForm();
+  renderPreview();
+}
+
+loadState();
+initForm();
+</script>
+</body>
+</html>
