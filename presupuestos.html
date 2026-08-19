@@ -260,6 +260,23 @@
   .pv-footer { text-align: center; font-size: 10.5px; opacity: 0.65; margin-top: 6px; text-transform: uppercase;
     letter-spacing: 0.05em; }
 
+  /* Print-only cover page ("carta de presentación"): title + ultra-brief summary +
+     reference photo. Hidden on screen and in image exports (display:none is skipped
+     by html2canvas too); only rendered in @media print, see below. */
+  .pv-cover { display: none; }
+  .pv-cover-logo { max-height: 46px; max-width: 160px; object-fit: contain; margin-bottom: 8px; display: block; }
+  .pv-cover-brand { font-weight: 900; font-size: 19px; text-transform: uppercase; letter-spacing: -0.02em; margin: 0; }
+  .pv-cover-tag { font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; opacity: 0.75; margin: 3px 0 0; }
+  .pv-cover-title { font-weight: 900; font-size: 40px; text-transform: uppercase; letter-spacing: -0.03em;
+    line-height: 1.05; margin: 18px 0 10px; max-width: 88%; }
+  .pv-cover-summary { font-size: 13.5px; line-height: 1.6; max-width: 78%; margin: 0 0 20px; opacity: 0.9; }
+  .pv-cover-photo { border-radius: 18px; background-size: cover; background-position: center;
+    border: 1px solid var(--pv-photo-border); margin-bottom: 20px; }
+  .pv-cover-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .pv-cover-stats .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; opacity: 0.7; }
+  .pv-cover-stats .v { display: block; font-size: 14.5px; font-weight: 800; margin-top: 3px; }
+  .pv-cover-footer { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; margin: 0; }
+
   /* Preview/document theme switch */
   .theme-switch { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
   .theme-switch .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
@@ -299,7 +316,16 @@
     }
     #previewArea .pv-inner { overflow: visible !important; }
     header.top, #formCol, .export-bar { display: none !important; }
-    .pv-card, .pv-head { break-inside: avoid; page-break-inside: avoid; }
+    .pv-card, .pv-head, .pv-meta, .pv-sub, table.pv-table tr {
+      break-inside: avoid-page; page-break-inside: avoid;
+    }
+
+    .pv-cover {
+      display: flex !important; flex-direction: column;
+      min-height: 225mm;
+      break-after: page; page-break-after: always;
+    }
+    .pv-cover-photo { flex: 1 1 160px; min-height: 160px; }
   }
 </style>
 </head>
@@ -438,7 +464,7 @@
       <button class="btn primary" id="openImageExport"><span>🖼 Exportar imagen</span></button>
       <button class="btn ghost" id="exportPdf"><span>📄 Exportar PDF</span></button>
     </div>
-    <p class="tcard-hint" style="margin-top:8px;">En el diálogo de impresión, si el PDF sale sin color de fondo, activá "Gráficos de fondo" / "Background graphics" (algunos navegadores lo piden aunque la página lo pida por CSS).</p>
+    <p class="tcard-hint" style="margin-top:8px;">El PDF incluye una portada (título, resumen y foto de referencia) seguida del presupuesto completo, sin cortar secciones entre páginas. En el diálogo de impresión, si sale sin color de fondo, activá "Gráficos de fondo" / "Background graphics".</p>
   </div>
 </main>
 
@@ -925,6 +951,7 @@ function renderPreview() {
     </div>`;
 
   el.innerHTML = `
+    ${coverCard(t, validoHasta)}
     <div class="pv-head">
       <div>
         ${headLogo}
@@ -959,6 +986,37 @@ function totalsBlock(t) {
 function notesBlock(notas) {
   if (!notas || !notas.length) return "";
   return `<div class="pv-notes">${notas.map(n => `<p>${escHtml(n)}</p>`).join("")}</div>`;
+}
+
+// Print-only cover page ("carta de presentación"): title, ultra-brief summary and
+// the reference photo. Rendered always (cheap) but only shown via @media print.
+function coverCard(t, validoHasta) {
+  const photo = featuredPhotoFor(state.mode);
+  const title = state.mode === "sesion"
+    ? (state.sesion.titulo || "Sesión fotográfica")
+    : "Cuadros fotográficos";
+  const summary = state.mode === "sesion"
+    ? truncate(state.sesion.descripcion, 220)
+    : `${state.cuadros.items.reduce((s, it) => s + it.cantidad, 0)} pieza(s) · ${[...new Set(state.cuadros.items.map(it => it.material).filter(Boolean))].join(", ")}`;
+
+  return `
+    <section class="pv-cover">
+      <div>
+        ${state.estudio.logo ? `<img class="pv-cover-logo" src="${escAttr(state.estudio.logo)}" alt="logo">` : ""}
+        <p class="pv-cover-brand">${escHtml(state.estudio.nombre) || "Tu Estudio"}</p>
+        <p class="pv-cover-tag">${escHtml(state.estudio.rubro) || "Fotografía"}</p>
+      </div>
+      <h1 class="pv-cover-title">${escHtml(title)}</h1>
+      <p class="pv-cover-summary">${escHtml(summary)}</p>
+      ${photo.src ? `<div class="pv-cover-photo" style="background-image:url('${escAttr(photo.src)}')"></div>` : ""}
+      <div class="pv-cover-stats">
+        <div><span class="k">Cliente</span><span class="v">${escHtml(state.cliente.nombre) || "—"}</span></div>
+        <div><span class="k">Fecha</span><span class="v">${fmtDate(state.fecha)}</span></div>
+        <div><span class="k">Válido hasta</span><span class="v">${fmtDate(validoHasta)}</span></div>
+        <div><span class="k">Total</span><span class="v">${fmtMoney(t.total)}</span></div>
+      </div>
+      <p class="pv-cover-footer">${escHtml(state.estudio.telefono)}${state.estudio.telefono && state.estudio.contacto ? " · " : ""}${escHtml(state.estudio.contacto)}</p>
+    </section>`;
 }
 
 // ---------- reset ----------
