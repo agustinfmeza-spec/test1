@@ -269,13 +269,21 @@
   .pv-cover-tag { font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; opacity: 0.75; margin: 3px 0 0; }
   .pv-cover-title { font-weight: 900; font-size: 40px; text-transform: uppercase; letter-spacing: -0.03em;
     line-height: 1.05; margin: 18px 0 10px; max-width: 88%; }
-  .pv-cover-summary { font-size: 13.5px; line-height: 1.6; max-width: 78%; margin: 0 0 20px; opacity: 0.9; }
+  .pv-cover-summary { font-size: 13.5px; line-height: 1.6; max-width: 78%; margin: 0 0 14px; opacity: 0.9; }
+  .pv-cover-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+  .pv-cover-chips span { font-size: 11px; font-weight: 500; background: var(--pv-chip-bg); border-radius: 999px; padding: 3px 10px; }
   .pv-cover-photo { border-radius: 18px; background-size: cover; background-position: center;
     border: 1px solid var(--pv-photo-border); margin-bottom: 20px; }
-  .pv-cover-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
-  .pv-cover-stats .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; opacity: 0.7; }
+  .pv-cover-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+  .pv-cover-stats .k, .pv-cover-total .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; opacity: 0.7; }
   .pv-cover-stats .v { display: block; font-size: 14.5px; font-weight: 800; margin-top: 3px; }
-  .pv-cover-footer { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; margin: 0; }
+  .pv-cover-total { background: var(--pv-card-bg); border: 1px solid var(--pv-card-border); border-radius: 14px;
+    padding: 14px 18px; margin-bottom: 14px; }
+  .pv-cover-total .v { display: block; font-weight: 900; font-size: 27px; letter-spacing: -0.02em; margin-top: 2px; }
+  .pv-cover-line { font-size: 11.5px; line-height: 1.5; opacity: 0.85; margin: 0 0 7px; max-width: 92%; }
+  .pv-cover-credit { font-size: 10.5px; line-height: 1.45; opacity: 0.7; font-style: italic; margin: 6px 0 10px; max-width: 92%; }
+  .pv-cover-footer { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; margin: 0;
+    border-top: 1px solid var(--pv-line-1); padding-top: 10px; }
 
   /* Preview/document theme switch */
   .theme-switch { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -325,8 +333,19 @@
       min-height: 225mm;
       break-after: page; page-break-after: always;
     }
-    .pv-cover-photo { flex: 1 1 160px; min-height: 160px; }
+    .pv-cover-photo { flex: 1 1 120px; min-height: 120px; }
   }
+
+  /* Direct-download PDF capture mode: same cover-page rules as @media print above,
+     toggled via JS on an offscreen clone (see exportPdfDirect()). This lets us build
+     the PDF as a real file with jsPDF instead of relying on window.print(), which is
+     unreliable on iOS/iPadOS (no OS print sheet in home-screen apps, inconsistent
+     background/color support in Mobile Safari's print pipeline). */
+  html[data-pdf-capture="1"] .pv-cover {
+    display: flex !important; flex-direction: column;
+    min-height: var(--pdf-page-h, 965px);
+  }
+  html[data-pdf-capture="1"] .pv-cover-photo { flex: 1 1 120px; min-height: 120px; }
 </style>
 </head>
 <body>
@@ -464,7 +483,7 @@
       <button class="btn primary" id="openImageExport"><span>🖼 Exportar imagen</span></button>
       <button class="btn ghost" id="exportPdf"><span>📄 Exportar PDF</span></button>
     </div>
-    <p class="tcard-hint" style="margin-top:8px;">El PDF incluye una portada (título, resumen y foto de referencia) seguida del presupuesto completo, sin cortar secciones entre páginas. En el diálogo de impresión, si sale sin color de fondo, activá "Gráficos de fondo" / "Background graphics".</p>
+    <p class="tcard-hint" style="margin-top:8px;">El PDF se genera y descarga directo (funciona en iPhone/iPad, sin pasar por el diálogo de impresión). Incluye una portada con título, resumen y foto de referencia, seguida del presupuesto completo, sin cortar secciones entre páginas.</p>
   </div>
 </main>
 
@@ -500,6 +519,7 @@
 <div id="shareCardHost"></div>
 
 <script src="vendor/html2canvas.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
 <script>
 const STORAGE_KEY = "presupuestos_fotograficos_v1";
 const CUR_SYMBOLS = { ARS: "ARS $", USD: "US$", EUR: "€" };
@@ -998,6 +1018,13 @@ function coverCard(t, validoHasta) {
   const summary = state.mode === "sesion"
     ? truncate(state.sesion.descripcion, 220)
     : `${state.cuadros.items.reduce((s, it) => s + it.cantidad, 0)} pieza(s) · ${[...new Set(state.cuadros.items.map(it => it.material).filter(Boolean))].join(", ")}`;
+  const chips = shareSummaryChips();
+  const pagoBlock = findFormaTrabajoBlock(/pago|se[ñn]a/i);
+  const inicioBlock = findFormaTrabajoBlock(/inicio/i);
+  const condLine = truncate((pagoBlock ? pagoBlock.cuerpo : "") || (inicioBlock ? inicioBlock.cuerpo : ""), 200);
+  const entregable = state.entregables[state.mode][0];
+  const entregLine = entregable ? truncate(`${entregable.titulo}: ${entregable.cuerpo}`, 200) : "";
+  const creditoAutoria = state.estudio.creditoAutoria || "@rawspeed.ph / Agustín Meza";
 
   return `
     <section class="pv-cover">
@@ -1008,14 +1035,18 @@ function coverCard(t, validoHasta) {
       </div>
       <h1 class="pv-cover-title">${escHtml(title)}</h1>
       <p class="pv-cover-summary">${escHtml(summary)}</p>
+      ${chips.length ? `<div class="pv-cover-chips">${chips.map(c => `<span>${escHtml(c)}</span>`).join("")}</div>` : ""}
       ${photo.src ? `<div class="pv-cover-photo" style="background-image:url('${escAttr(photo.src)}')"></div>` : ""}
       <div class="pv-cover-stats">
         <div><span class="k">Cliente</span><span class="v">${escHtml(state.cliente.nombre) || "—"}</span></div>
-        <div><span class="k">Fecha</span><span class="v">${fmtDate(state.fecha)}</span></div>
+        <div><span class="k">Seña</span><span class="v">${state.senaPct}%</span></div>
         <div><span class="k">Válido hasta</span><span class="v">${fmtDate(validoHasta)}</span></div>
-        <div><span class="k">Total</span><span class="v">${fmtMoney(t.total)}</span></div>
       </div>
-      <p class="pv-cover-footer">${escHtml(state.estudio.telefono)}${state.estudio.telefono && state.estudio.contacto ? " · " : ""}${escHtml(state.estudio.contacto)}</p>
+      <div class="pv-cover-total"><span class="k">Total</span><span class="v">${fmtMoney(t.total)}</span></div>
+      ${condLine ? `<p class="pv-cover-line">${escHtml(condLine)}</p>` : ""}
+      ${entregLine ? `<p class="pv-cover-line">${escHtml(entregLine)}</p>` : ""}
+      <p class="pv-cover-credit">© Fotografías: ${escHtml(creditoAutoria)} — autor creativo y productor. Prohibida su reproducción o difusión sin esta mención.</p>
+      <p class="pv-cover-footer">${escHtml(state.estudio.telefono)}${state.estudio.telefono && state.estudio.contacto ? " · " : ""}${escHtml(state.estudio.contacto)} — Presupuesto sujeto a modificación</p>
     </section>`;
 }
 
@@ -1042,7 +1073,22 @@ document.getElementById("resetAll").addEventListener("click", () => {
 });
 
 // ---------- PDF export ----------
-document.getElementById("exportPdf").addEventListener("click", () => { window.print(); });
+document.getElementById("exportPdf").addEventListener("click", async () => {
+  const btn = document.getElementById("exportPdf");
+  const btnLabel = btn.querySelector("span");
+  const prevLabel = btnLabel.textContent;
+  btn.disabled = true;
+  btnLabel.textContent = "⏳ Generando PDF...";
+  try {
+    await exportPdfDirect();
+  } catch (err) {
+    console.error(err);
+    showLogoError("No se pudo generar el PDF: " + (err && err.message ? err.message : "error desconocido") + ". Probá de nuevo.");
+  } finally {
+    btn.disabled = false;
+    btnLabel.textContent = prevLabel;
+  }
+});
 
 // ---------- Image export ----------
 const imgModal = document.getElementById("imgModal");
@@ -1101,6 +1147,96 @@ async function exportFullImage() {
     windowWidth: node.scrollWidth, windowHeight: node.scrollHeight
   });
   await downloadCanvasAsPng(canvas, `presupuesto-${(state.estudio.nombre || "estudio").replace(/\s+/g, "_")}-completo.png`);
+}
+
+// ---------- Direct PDF export (no OS print dialog) ----------
+// window.print() is unreliable on iOS/iPadOS: home-screen (standalone) web apps have
+// no print API at all, and Mobile Safari's print pipeline is inconsistent with CSS
+// backgrounds/colors even in-tab. Instead we render the same content that @media print
+// uses (cover page + direct-data body) onto an offscreen clone, capture it once with
+// html2canvas, slice that single image at block boundaries (never mid-card, mid-row,
+// etc. — same "no cortar secciones" guarantee as native print) and assemble a real
+// multi-page PDF file with jsPDF, then trigger a direct file download.
+const PDF_PAGE_W_PT = 612, PDF_PAGE_H_PT = 792; // US Letter
+const PDF_MARGIN_PT = 34; // ~12mm, matches @page margin
+const PDF_CONTENT_W_PT = PDF_PAGE_W_PT - PDF_MARGIN_PT * 2;
+const PDF_CONTENT_H_PT = PDF_PAGE_H_PT - PDF_MARGIN_PT * 2;
+const PT_PER_PX = 0.75; // 72pt / 96dpi
+const PDF_CONTENT_W_PX = Math.round(PDF_CONTENT_W_PT / PT_PER_PX);
+const PDF_CONTENT_H_PX = Math.round(PDF_CONTENT_H_PT / PT_PER_PX);
+
+async function exportPdfDirect() {
+  if (!window.jspdf) throw new Error("No se pudo cargar el generador de PDF.");
+  const source = document.getElementById("previewArea");
+  const host = document.getElementById("shareCardHost");
+
+  document.documentElement.style.setProperty("--pdf-page-h", PDF_CONTENT_H_PX + "px");
+  document.documentElement.setAttribute("data-pdf-capture", "1");
+
+  const clone = source.cloneNode(true);
+  clone.style.position = "static";
+  clone.style.width = PDF_CONTENT_W_PX + "px";
+  clone.style.height = "auto";
+  clone.style.maxHeight = "none";
+  clone.style.boxShadow = "none";
+  clone.style.borderRadius = "0";
+  clone.style.overflow = "visible";
+  const cloneInner = clone.querySelector(".pv-inner");
+  if (cloneInner) cloneInner.style.overflow = "visible";
+  host.innerHTML = "";
+  host.appendChild(clone);
+
+  try {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const containerTop = clone.getBoundingClientRect().top;
+    const blocks = Array.from(cloneInner.children)
+      .map(el => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top - containerTop, bottom: r.bottom - containerTop };
+      })
+      .filter(b => b.bottom > b.top);
+    if (!blocks.length) throw new Error("No hay contenido para exportar.");
+
+    const scale = safeScaleFor(clone.scrollWidth, clone.scrollHeight, 2);
+    const canvas = await html2canvas(clone, {
+      scale, backgroundColor: "#ffffff", useCORS: true,
+      windowWidth: clone.scrollWidth, windowHeight: clone.scrollHeight
+    });
+
+    // Page 1 is always the cover alone; the rest pack greedily, never splitting a block.
+    const pages = [[blocks[0]]];
+    let cur = [];
+    for (let i = 1; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (!cur.length) { cur.push(b); continue; }
+      if (b.bottom - cur[0].top > PDF_CONTENT_H_PX) { pages.push(cur); cur = [b]; }
+      else cur.push(b);
+    }
+    if (cur.length) pages.push(cur);
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    pages.forEach((group, i) => {
+      const top = group[0].top, bottom = group[group.length - 1].bottom;
+      const sy = Math.round(top * scale), sh = Math.max(1, Math.round((bottom - top) * scale));
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sh;
+      pageCanvas.getContext("2d").drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh);
+      const imgHPt = (bottom - top) * PT_PER_PX;
+      if (i > 0) doc.addPage();
+      // JPEG keeps file size reasonable for email/WhatsApp; the gradient backgrounds
+      // compress far worse as lossless PNG and the quality loss is imperceptible here.
+      doc.addImage(pageCanvas.toDataURL("image/jpeg", 0.9), "JPEG", PDF_MARGIN_PT, PDF_MARGIN_PT, PDF_CONTENT_W_PT, imgHPt);
+    });
+
+    doc.save(`presupuesto-${(state.estudio.nombre || "estudio").replace(/\s+/g, "_")}.pdf`);
+  } finally {
+    host.innerHTML = "";
+    document.documentElement.removeAttribute("data-pdf-capture");
+  }
 }
 
 function shareSummaryChips() {
