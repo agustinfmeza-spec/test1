@@ -224,8 +224,13 @@
     body * { visibility: hidden; }
     #previewArea, #previewArea * { visibility: visible; }
     .preview-wrap { position: static !important; }
-    #previewArea { position: static !important; margin: 0; border-radius: 0; box-shadow: none; width: 100%; }
+    #previewArea {
+      position: static !important; margin: 0; border-radius: 0; box-shadow: none; width: 100%;
+      overflow: visible !important; height: auto !important;
+    }
+    #previewArea .pv-inner { overflow: visible !important; }
     header.top, #formCol, .export-bar { display: none !important; }
+    .pv-card, .pv-head { break-inside: avoid; page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -338,7 +343,7 @@
   <div class="preview-wrap">
     <div id="previewArea"><div class="pv-inner" id="pvInner"></div></div>
     <div class="export-bar">
-      <button class="btn primary" id="openImageExport"><span>🖼 Exportar imagen (redes)</span></button>
+      <button class="btn primary" id="openImageExport"><span>🖼 Exportar imagen</span></button>
       <button class="btn ghost" id="exportPdf"><span>📄 Exportar PDF</span></button>
     </div>
   </div>
@@ -348,10 +353,11 @@
 <div class="modal-backdrop" id="imgModal">
   <div class="modal">
     <h2>Exportar imagen</h2>
-    <p class="sub">Elegí el formato para redes sociales</p>
+    <p class="sub">Elegí qué querés descargar</p>
     <div class="size-opt">
-      <label><input type="radio" name="imgSize" value="post" checked> Post<br>1080×1350</label>
-      <label><input type="radio" name="imgSize" value="story"> Story<br>1080×1920</label>
+      <label><input type="radio" name="imgSize" value="full" checked> Presupuesto<br>completo</label>
+      <label><input type="radio" name="imgSize" value="post"> Post (resumen)<br>1080×1350</label>
+      <label><input type="radio" name="imgSize" value="story"> Story (resumen)<br>1080×1920</label>
     </div>
     <div class="modal-actions">
       <button class="btn ghost sm" id="imgModalCancel"><span>Cancelar</span></button>
@@ -827,8 +833,27 @@ document.getElementById("imgModalCancel").addEventListener("click", () => imgMod
 document.getElementById("imgModalGo").addEventListener("click", async () => {
   const size = document.querySelector('input[name="imgSize"]:checked').value;
   imgModal.classList.remove("open");
-  await exportShareImage(size);
+  if (size === "full") await exportFullImage();
+  else await exportShareImage(size);
 });
+
+// Full budget (all sections) as a single tall PNG, at the preview's actual rendered content.
+async function exportFullImage() {
+  const node = document.getElementById("previewArea");
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+  const canvas = await html2canvas(node, {
+    scale: 2, backgroundColor: null, useCORS: true,
+    windowWidth: node.scrollWidth, windowHeight: node.scrollHeight
+  });
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `presupuesto-${(state.estudio.nombre || "estudio").replace(/\s+/g, "_")}-completo.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }, "image/png");
+}
 
 async function exportShareImage(size) {
   const dims = size === "story" ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
