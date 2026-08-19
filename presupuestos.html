@@ -174,6 +174,10 @@
 
   .pv-service-title { font-weight: 900; font-size: 15px; text-transform: uppercase; margin: 0 0 4px; }
   .pv-service-desc { font-size: 12.8px; line-height: 1.55; margin: 0 0 10px; }
+  .pv-concept-photo { width: 100%; max-height: 260px; object-fit: cover; border-radius: 14px; margin: 4px 0 14px;
+    display: block; border: 1px solid rgba(255,255,255,0.6); }
+  .pv-table td.thumb img { width: 36px; height: 36px; object-fit: cover; border-radius: 7px; display: block; }
+  .pv-table td.thumb span { font-size: 11px; opacity: 0.5; }
   .pv-bullets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
   .pv-bullets span { font-size: 11px; font-weight: 500; background: rgba(10,13,18,0.08); border-radius: 999px;
     padding: 3px 10px; }
@@ -284,6 +288,8 @@
         <span class="tcard-hint" style="margin:4px 0 0;">PNG, JPG, WEBP o SVG. Se ajusta automáticamente al tamaño de la plantilla, sin deformarse.</span>
         <span class="tcard-hint" id="logoErrorMsg" style="margin:2px 0 0; color: var(--danger); display:none;"></span>
       </label>
+      <label class="field"><span class="lbl">Crédito de autoría (difusión de imágenes)</span><input id="f-creditoAutoria" placeholder="@rawspeed.ph / Agustín Meza"></label>
+      <span class="tcard-hint" style="margin:-6px 0 0;">Aparece en las imágenes exportadas para redes, como mención obligatoria del autor/productor de las fotos.</span>
     </div></div></div></div>
 
     <!-- Cliente y fechas -->
@@ -305,6 +311,17 @@
       <h2>Servicio (sesión / evento)</h2>
       <label class="field"><span class="lbl">Título del servicio</span><input id="f-sTitulo" placeholder="Ej: Book fotográfico / Cobertura de boda"></label>
       <label class="field"><span class="lbl">Descripción</span><textarea id="f-sDescripcion" placeholder="Detalle del servicio, locación, cantidad de cámaras, etc."></textarea></label>
+      <label class="field">
+        <span class="lbl">Foto concepto (tema del presupuesto)</span>
+        <div class="logo-upload">
+          <div class="logo-preview" id="fotoConceptoPreview"><span>Sin foto</span></div>
+          <div class="logo-upload-actions">
+            <label class="btn ghost sm file-btn"><span>📁 Subir foto</span><input type="file" id="f-fotoConceptoFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+            <button class="btn danger sm" id="f-fotoConceptoRemove" type="button"><span>✕ Quitar</span></button>
+          </div>
+        </div>
+        <span class="tcard-hint" style="margin:4px 0 0;">Se muestra destacada en el resumen para redes, para que no quede una zona vacía.</span>
+      </label>
       <label class="field"><span class="lbl">Incluye (una línea por ítem)</span><textarea id="f-sBullets" placeholder="Planificación y scouting&#10;Shooting de 2 a 4 h&#10;Retoque avanzado de 15 imágenes"></textarea></label>
       <div class="lbl" style="margin-bottom:8px;">Ítems del presupuesto</div>
       <div id="sesionItems"></div>
@@ -316,7 +333,7 @@
     <!-- Módulo CUADROS -->
     <div class="tcard hidden" id="form-cuadros"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
       <h2>Cuadros fotográficos</h2>
-      <p class="tcard-hint">Cada línea es una pieza: tamaño, material, marco/terminación, cantidad y precio unitario.</p>
+      <p class="tcard-hint">Cada línea es una pieza: tamaño, material, marco/terminación, cantidad, precio unitario y, opcionalmente, la foto de esa pieza. La primera pieza con foto se destaca en el resumen para redes.</p>
       <div id="cuadrosItems"></div>
       <button class="btn ghost sm" id="addCuadroItem"><span>➕ Agregar pieza</span></button>
       <label class="field" style="margin-top:12px;"><span class="lbl">Descuento / bonificación (%)</span><input type="number" id="f-cDescuento" min="0" max="100" value="0"></label>
@@ -391,7 +408,7 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 function defaultState() {
   return {
     mode: "sesion",
-    estudio: { nombre: "", rubro: "", telefono: "", contacto: "", moneda: "ARS", monedaOtra: "$", logo: "" },
+    estudio: { nombre: "", rubro: "", telefono: "", contacto: "", moneda: "ARS", monedaOtra: "$", logo: "", creditoAutoria: "@rawspeed.ph / Agustín Meza" },
     cliente: { nombre: "", contacto: "" },
     fecha: todayISO(),
     validezDias: 15,
@@ -399,6 +416,7 @@ function defaultState() {
     sesion: {
       titulo: "Book fotográfico",
       descripcion: "Sesión en locación a definir con el cliente. Producción y edición incluidas.",
+      fotoConcepto: "",
       bullets: ["Planificación y scouting", "Shooting de 2 a 4 h", "Retoque avanzado de 15 imágenes"],
       items: [
         { id: uid(), concepto: "Sesión fotográfica (2 a 4 h)", cantidad: 1, precio: 120000 },
@@ -409,8 +427,8 @@ function defaultState() {
     },
     cuadros: {
       items: [
-        { id: uid(), tamano: "30x40 cm", material: "Canvas", marco: "Marco flotante negro", cantidad: 2, precio: 18000 },
-        { id: uid(), tamano: "40x60 cm", material: "Papel Fine Art", marco: "Sin marco", cantidad: 1, precio: 22000 }
+        { id: uid(), tamano: "30x40 cm", material: "Canvas", marco: "Marco flotante negro", cantidad: 2, precio: 18000, foto: "" },
+        { id: uid(), tamano: "40x60 cm", material: "Papel Fine Art", marco: "Sin marco", cantidad: 1, precio: 22000, foto: "" }
       ],
       descuentoPct: 0,
       notas: ["* Los tiempos de producción son de 7 días hábiles desde la aprobación.", "* El envío a domicilio se cotiza aparte según destino."]
@@ -419,7 +437,7 @@ function defaultState() {
       sesion: [
         { id: uid(), titulo: "Carpeta de proyecto", cuerpo: "Fotografías crudas y editadas en alta resolución. Entrega digital mediante enlace con 3 días de validez para su descarga." },
         { id: uid(), titulo: "Planificación", cuerpo: "La conceptualización se comparte con el cliente a modo referencial y es de carácter confidencial." },
-        { id: uid(), titulo: "Derechos de autoría", cuerpo: "El estudio conserva los derechos de autor de las imágenes y puede utilizarlas con fines de difusión y portfolio." }
+        { id: uid(), titulo: "Derechos de autoría", cuerpo: "La divulgación de las imágenes en plataformas digitales implica la mención de @rawspeed.ph / Agustín Meza como autor creativo y productor de la obra. Queda prohibida su reproducción sin esa mención." }
       ],
       cuadros: [
         { id: uid(), titulo: "Producción", cuerpo: "Impresión y armado de cada pieza según tamaño, material y terminación seleccionados." },
@@ -438,10 +456,20 @@ function defaultState() {
 
 let state = defaultState();
 
+function isPlainObject(v) { return v && typeof v === "object" && !Array.isArray(v); }
+function mergeState(defaults, saved) {
+  const result = { ...defaults };
+  for (const key in saved) {
+    result[key] = isPlainObject(saved[key]) && isPlainObject(defaults[key])
+      ? { ...defaults[key], ...saved[key] }
+      : saved[key];
+  }
+  return result;
+}
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state = Object.assign(defaultState(), JSON.parse(raw));
+    if (raw) state = mergeState(defaultState(), JSON.parse(raw));
   } catch (e) { /* ignore */ }
 }
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -472,6 +500,7 @@ function bindSimpleFields() {
     ["f-estudioTelefono", () => state.estudio.telefono, v => state.estudio.telefono = v],
     ["f-estudioContacto", () => state.estudio.contacto, v => state.estudio.contacto = v],
     ["f-monedaOtra", () => state.estudio.monedaOtra, v => state.estudio.monedaOtra = v],
+    ["f-creditoAutoria", () => state.estudio.creditoAutoria, v => state.estudio.creditoAutoria = v],
     ["f-clienteNombre", () => state.cliente.nombre, v => state.cliente.nombre = v],
     ["f-clienteContacto", () => state.cliente.contacto, v => state.cliente.contacto = v],
     ["f-fecha", () => state.fecha, v => state.fecha = v],
@@ -503,16 +532,20 @@ function bindSimpleFields() {
 
   initLogoUpload();
   renderLogoPreview();
+  initFotoConceptoUpload();
+  renderFotoConceptoPreview();
 }
 
-// ---------- logo upload (file -> auto-fit data URL) ----------
+// ---------- image upload (file -> auto-fit data URL) ----------
 const LOGO_MAX_DIMENSION = 800; // px, longest side after downscale
-const LOGO_MAX_FILE_BYTES = 6 * 1024 * 1024; // 6MB raw upload guard
+const PHOTO_MAX_DIMENSION = 1400; // content photos are shown larger, keep more detail
+const IMG_MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB raw upload guard
 
-function loadImageAsDataUrl(file) {
+function loadImageAsDataUrl(file, maxDim) {
+  maxDim = maxDim || LOGO_MAX_DIMENSION;
   return new Promise((resolve, reject) => {
-    if (file.size > LOGO_MAX_FILE_BYTES) {
-      reject(new Error("El archivo pesa demasiado (máx 6MB)."));
+    if (file.size > IMG_MAX_FILE_BYTES) {
+      reject(new Error("El archivo pesa demasiado (máx 8MB)."));
       return;
     }
     const reader = new FileReader();
@@ -522,8 +555,8 @@ function loadImageAsDataUrl(file) {
       img.onload = () => {
         let { width, height } = img;
         if (!width || !height) { reject(new Error("Imagen inválida.")); return; }
-        if (width > LOGO_MAX_DIMENSION || height > LOGO_MAX_DIMENSION) {
-          const scale = Math.min(LOGO_MAX_DIMENSION / width, LOGO_MAX_DIMENSION / height);
+        if (width > maxDim || height > maxDim) {
+          const scale = Math.min(maxDim / width, maxDim / height);
           width = Math.round(width * scale);
           height = Math.round(height * scale);
         }
@@ -532,7 +565,7 @@ function loadImageAsDataUrl(file) {
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
         const keepPng = file.type === "image/png" || file.type === "image/svg+xml" || file.type === "image/webp";
-        resolve(canvas.toDataURL(keepPng ? "image/png" : "image/jpeg", 0.92));
+        resolve(canvas.toDataURL(keepPng ? "image/png" : "image/jpeg", 0.9));
       };
       img.onerror = () => reject(new Error("El archivo no es una imagen válida."));
       img.src = reader.result;
@@ -563,7 +596,7 @@ function initLogoUpload() {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     try {
-      state.estudio.logo = await loadImageAsDataUrl(file);
+      state.estudio.logo = await loadImageAsDataUrl(file, LOGO_MAX_DIMENSION);
       saveState();
       renderLogoPreview();
       renderPreview();
@@ -576,6 +609,37 @@ function initLogoUpload() {
     state.estudio.logo = "";
     saveState();
     renderLogoPreview();
+    renderPreview();
+  });
+}
+
+function renderFotoConceptoPreview() {
+  const el = document.getElementById("fotoConceptoPreview");
+  el.innerHTML = state.sesion.fotoConcepto
+    ? `<img src="${state.sesion.fotoConcepto}" alt="foto concepto">`
+    : `<span>Sin foto</span>`;
+}
+
+function initFotoConceptoUpload() {
+  const fileInput = document.getElementById("f-fotoConceptoFile");
+  const removeBtn = document.getElementById("f-fotoConceptoRemove");
+  fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      state.sesion.fotoConcepto = await loadImageAsDataUrl(file, PHOTO_MAX_DIMENSION);
+      saveState();
+      renderFotoConceptoPreview();
+      renderPreview();
+    } catch (err) {
+      showLogoError(err.message || "No se pudo cargar la imagen.");
+    }
+    fileInput.value = "";
+  });
+  removeBtn.addEventListener("click", () => {
+    state.sesion.fotoConcepto = "";
+    saveState();
+    renderFotoConceptoPreview();
     renderPreview();
   });
 }
@@ -628,6 +692,13 @@ function renderCuadrosItems() {
       <div class="grid">
         <input data-f="precio" type="number" min="0" placeholder="Precio unitario" value="${it.precio}">
       </div>
+      <div class="logo-upload" style="margin-bottom:8px;">
+        <div class="logo-preview" data-f="fotoPreview" style="width:44px;height:44px;">${it.foto ? `<img src="${it.foto}" alt="foto pieza">` : `<span>Sin foto</span>`}</div>
+        <div class="logo-upload-actions">
+          <label class="btn ghost sm file-btn"><span>📁 Foto de esta pieza</span><input type="file" data-f="fotoFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+          <button class="btn danger sm" data-act="fotoDel" type="button"><span>✕ Quitar foto</span></button>
+        </div>
+      </div>
       <div class="item-row-foot">
         <span class="subtotal">${fmtMoney(it.cantidad * it.precio)}</span>
         <button class="btn danger sm" data-act="del"><span>✕</span></button>
@@ -637,6 +708,17 @@ function renderCuadrosItems() {
     row.querySelector('[data-f="marco"]').addEventListener("change", e => { it.marco = e.target.value; saveState(); renderPreview(); });
     row.querySelector('[data-f="cantidad"]').addEventListener("input", e => { it.cantidad = Number(e.target.value) || 0; saveState(); renderCuadrosItems(); renderPreview(); });
     row.querySelector('[data-f="precio"]').addEventListener("input", e => { it.precio = Number(e.target.value) || 0; saveState(); renderCuadrosItems(); renderPreview(); });
+    row.querySelector('[data-f="fotoFile"]').addEventListener("change", async e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        it.foto = await loadImageAsDataUrl(file, PHOTO_MAX_DIMENSION);
+        saveState(); renderCuadrosItems(); renderPreview();
+      } catch (err) {
+        showLogoError(err.message || "No se pudo cargar la imagen.");
+      }
+    });
+    row.querySelector('[data-act="fotoDel"]').addEventListener("click", () => { it.foto = ""; saveState(); renderCuadrosItems(); renderPreview(); });
     row.querySelector('[data-act="del"]').addEventListener("click", () => { state.cuadros.items = state.cuadros.items.filter(x => x.id !== it.id); saveState(); renderCuadrosItems(); renderPreview(); });
     wrap.appendChild(row);
   });
@@ -689,7 +771,7 @@ document.getElementById("addSesionItem").addEventListener("click", () => {
   saveState(); renderSesionItems(); renderPreview();
 });
 document.getElementById("addCuadroItem").addEventListener("click", () => {
-  state.cuadros.items.push({ id: uid(), tamano: "20x30 cm", material: MATERIALES[0], marco: MARCOS[0], cantidad: 1, precio: 0 });
+  state.cuadros.items.push({ id: uid(), tamano: "20x30 cm", material: MATERIALES[0], marco: MARCOS[0], cantidad: 1, precio: 0, foto: "" });
   saveState(); renderCuadrosItems(); renderPreview();
 });
 document.getElementById("addEntregable").addEventListener("click", () => {
@@ -729,6 +811,7 @@ function renderPreview() {
       <h3>Servicio</h3>
       <p class="pv-service-title">${escHtml(state.sesion.titulo) || "Servicio"}</p>
       <p class="pv-service-desc">${escHtml(state.sesion.descripcion)}</p>
+      ${state.sesion.fotoConcepto ? `<img class="pv-concept-photo" src="${escAttr(state.sesion.fotoConcepto)}" alt="Foto concepto">` : ""}
       <div class="pv-bullets">${state.sesion.bullets.map(b => `<span>${escHtml(b)}</span>`).join("")}</div>
       <table class="pv-table">
         <thead><tr><th>Concepto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
@@ -740,8 +823,8 @@ function renderPreview() {
     <div class="pv-card">
       <h3>Cuadros fotográficos</h3>
       <table class="pv-table">
-        <thead><tr><th>Tamaño</th><th>Material</th><th>Marco</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
-        <tbody>${state.cuadros.items.map(it => `<tr><td>${escHtml(it.tamano)}</td><td>${escHtml(it.material)}</td><td>${escHtml(it.marco)}</td><td class="num">${it.cantidad}</td><td class="num">${fmtMoney(it.precio)}</td><td class="num">${fmtMoney(it.cantidad * it.precio)}</td></tr>`).join("")}</tbody>
+        <thead><tr><th>Foto</th><th>Tamaño</th><th>Material</th><th>Marco</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>${state.cuadros.items.map(it => `<tr><td class="thumb">${it.foto ? `<img src="${escAttr(it.foto)}" alt="">` : `<span>—</span>`}</td><td>${escHtml(it.tamano)}</td><td>${escHtml(it.material)}</td><td>${escHtml(it.marco)}</td><td class="num">${it.cantidad}</td><td class="num">${fmtMoney(it.precio)}</td><td class="num">${fmtMoney(it.cantidad * it.precio)}</td></tr>`).join("")}</tbody>
       </table>
       ${totalsBlock(t)}
       ${notesBlock(state.cuadros.notas)}
@@ -869,6 +952,12 @@ function truncate(s, max) {
   return s.length > max ? s.slice(0, max - 1).trim() + "…" : s;
 }
 
+function featuredPhotoFor(mode) {
+  if (mode === "sesion") return { src: state.sesion.fotoConcepto, caption: "" };
+  const it = state.cuadros.items.find(x => x.foto);
+  return { src: it ? it.foto : "", caption: it ? `${it.tamano}${it.material ? " · " + it.material : ""}` : "" };
+}
+
 async function exportShareImage(size) {
   const dims = size === "story" ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
   const t = computeTotales();
@@ -881,56 +970,98 @@ async function exportShareImage(size) {
   const inicioBlock = findFormaTrabajoBlock(/inicio/i);
   const condLine = truncate(
     (pagoBlock ? pagoBlock.cuerpo : "") || (inicioBlock ? inicioBlock.cuerpo : ""),
-    size === "story" ? 150 : 100
+    size === "story" ? 150 : 105
   );
+  const entregable = state.entregables[state.mode][0];
+  const entregLine = entregable ? truncate(`${entregable.titulo}: ${entregable.cuerpo}`, size === "story" ? 150 : 105) : "";
+  const creditoAutoria = state.estudio.creditoAutoria || "@rawspeed.ph / Agustín Meza";
+  const photo = featuredPhotoFor(state.mode);
 
-  const host = document.getElementById("shareCardHost");
-  host.innerHTML = `
-    <div id="shareCard" style="width:${dims.w}px;height:${dims.h}px;position:relative;overflow:hidden;
-      font-family:'Archivo',sans-serif;color:#0a0d12;
-      background:
-        radial-gradient(ellipse 1200px 900px at 12% 6%, #ffe3bb 0%, transparent 60%),
-        radial-gradient(ellipse 1200px 1200px at 90% 100%, #e98c6c 0%, transparent 60%),
-        radial-gradient(ellipse 900px 900px at 70% 30%, #f4b79a 0%, transparent 65%),
-        linear-gradient(135deg, #fff3de 0%, #f0a888 100%);">
-      <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:${dims.w * 0.07}px;box-sizing:border-box;">
-        <div>
-          ${state.estudio.logo ? `<img src="${escAttr(state.estudio.logo)}" style="display:block;max-height:${dims.w * 0.14}px;max-width:${dims.w * 0.55}px;object-fit:contain;margin-bottom:14px;">` : ""}
-          <div style="font-weight:900;font-size:${dims.w * 0.062}px;text-transform:uppercase;letter-spacing:-0.03em;line-height:1;">${escHtml(state.estudio.nombre) || "Tu Estudio"}</div>
-          <div style="font-weight:500;font-size:${dims.w * 0.026}px;text-transform:uppercase;letter-spacing:0.02em;margin-top:8px;">${escHtml(state.estudio.rubro) || "Fotografía"}</div>
+  const pad = dims.w * 0.07;
+  const photoMarginY = dims.w * 0.03;
+
+  const headerHtml = `
+    <div id="scHeader" style="flex:0 0 auto;">
+      ${state.estudio.logo ? `<img src="${escAttr(state.estudio.logo)}" style="display:block;max-height:${dims.w * 0.14}px;max-width:${dims.w * 0.55}px;object-fit:contain;margin-bottom:14px;">` : ""}
+      <div style="font-weight:900;font-size:${dims.w * 0.062}px;text-transform:uppercase;letter-spacing:-0.03em;line-height:1;">${escHtml(state.estudio.nombre) || "Tu Estudio"}</div>
+      <div style="font-weight:500;font-size:${dims.w * 0.026}px;text-transform:uppercase;letter-spacing:0.02em;margin-top:8px;">${escHtml(state.estudio.rubro) || "Fotografía"}</div>
+    </div>`;
+
+  const bottomHtml = `
+    <div id="scBottom" style="flex:0 0 auto;">
+      <div style="font-size:${dims.w * 0.022}px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;opacity:0.75;margin-bottom:6px;">Presupuesto</div>
+      <div style="font-weight:800;font-size:${dims.w * 0.038}px;margin-bottom:${dims.w * 0.016}px;max-width:92%;">${escHtml(summaryLine)}</div>
+      ${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:${dims.w * 0.012}px;margin-bottom:${dims.w * 0.024}px;">${chips.map(c => `<span style="font-size:${dims.w * 0.018}px;font-weight:600;background:rgba(10,13,18,0.08);border-radius:999px;padding:${dims.w * 0.008}px ${dims.w * 0.016}px;">${escHtml(c)}</span>`).join("")}</div>` : ""}
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:${dims.w * 0.012}px;margin-bottom:${dims.w * 0.02}px;">
+        <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+          <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Cliente</div>
+          <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${escHtml(state.cliente.nombre) || "—"}</div>
         </div>
-        <div>
-          <div style="font-size:${dims.w * 0.022}px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;opacity:0.75;margin-bottom:6px;">Presupuesto</div>
-          <div style="font-weight:800;font-size:${dims.w * 0.038}px;margin-bottom:${dims.w * 0.016}px;max-width:92%;">${escHtml(summaryLine)}</div>
-          ${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:${dims.w * 0.012}px;margin-bottom:${dims.w * 0.024}px;">${chips.map(c => `<span style="font-size:${dims.w * 0.018}px;font-weight:600;background:rgba(10,13,18,0.08);border-radius:999px;padding:${dims.w * 0.008}px ${dims.w * 0.016}px;">${escHtml(c)}</span>`).join("")}</div>` : ""}
-
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:${dims.w * 0.012}px;margin-bottom:${dims.w * 0.02}px;">
-            <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
-              <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Cliente</div>
-              <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${escHtml(state.cliente.nombre) || "—"}</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
-              <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Seña</div>
-              <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${state.senaPct}%</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
-              <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Válido hasta</div>
-              <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${fmtDate(validoHasta)}</div>
-            </div>
-          </div>
-
-          <div style="background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.6);border-radius:18px;padding:${dims.w * 0.04}px;margin-bottom:${dims.w * 0.018}px;">
-            <div style="font-size:${dims.w * 0.02}px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;opacity:0.75;">Total</div>
-            <div style="font-weight:900;font-size:${dims.w * 0.07}px;letter-spacing:-0.02em;">${fmtMoney(t.total)}</div>
-          </div>
-          ${condLine ? `<div style="font-size:${dims.w * 0.0165}px;line-height:1.5;opacity:0.85;margin-bottom:${dims.w * 0.018}px;max-width:96%;">${escHtml(condLine)}</div>` : ""}
-          <div style="display:flex;justify-content:space-between;font-size:${dims.w * 0.02}px;font-weight:600;text-transform:uppercase;border-top:1px solid rgba(10,13,18,0.25);padding-top:${dims.w * 0.014}px;">
-            <span>Presupuesto sujeto a modificación</span>
-            <span>${escHtml(state.estudio.telefono)}${state.estudio.telefono && state.estudio.contacto ? " · " : ""}${escHtml(state.estudio.contacto)}</span>
-          </div>
+        <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+          <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Seña</div>
+          <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${state.senaPct}%</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+          <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Válido hasta</div>
+          <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${fmtDate(validoHasta)}</div>
         </div>
       </div>
+
+      <div style="background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.6);border-radius:18px;padding:${dims.w * 0.04}px;margin-bottom:${dims.w * 0.016}px;">
+        <div style="font-size:${dims.w * 0.02}px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;opacity:0.75;">Total</div>
+        <div style="font-weight:900;font-size:${dims.w * 0.07}px;letter-spacing:-0.02em;">${fmtMoney(t.total)}</div>
+      </div>
+      ${condLine ? `<div style="font-size:${dims.w * 0.016}px;line-height:1.45;opacity:0.85;margin-bottom:${dims.w * 0.008}px;max-width:98%;">${escHtml(condLine)}</div>` : ""}
+      ${entregLine ? `<div style="font-size:${dims.w * 0.016}px;line-height:1.45;opacity:0.85;margin-bottom:${dims.w * 0.014}px;max-width:98%;">${escHtml(entregLine)}</div>` : ""}
+      <div style="font-size:${dims.w * 0.0145}px;line-height:1.4;opacity:0.7;font-style:italic;margin-bottom:${dims.w * 0.014}px;max-width:98%;">
+        © Fotografías: ${escHtml(creditoAutoria)} — autor creativo y productor. Prohibida su reproducción o difusión sin esta mención.
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:${dims.w * 0.019}px;font-weight:600;text-transform:uppercase;border-top:1px solid rgba(10,13,18,0.25);padding-top:${dims.w * 0.014}px;">
+        <span>Presupuesto sujeto a modificación</span>
+        <span>${escHtml(state.estudio.telefono)}${state.estudio.telefono && state.estudio.contacto ? " · " : ""}${escHtml(state.estudio.contacto)}</span>
+      </div>
     </div>`;
+
+  function cardShell(innerHtml) {
+    return `
+      <div id="shareCard" style="width:${dims.w}px;height:${dims.h}px;position:relative;overflow:hidden;
+        font-family:'Archivo',sans-serif;color:#0a0d12;
+        background:
+          radial-gradient(ellipse 1200px 900px at 12% 6%, #ffe3bb 0%, transparent 60%),
+          radial-gradient(ellipse 1200px 1200px at 90% 100%, #e98c6c 0%, transparent 60%),
+          radial-gradient(ellipse 900px 900px at 70% 30%, #f4b79a 0%, transparent 65%),
+          linear-gradient(135deg, #fff3de 0%, #f0a888 100%);">
+        <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;padding:${pad}px;box-sizing:border-box;">
+          ${innerHtml}
+        </div>
+      </div>`;
+  }
+
+  const host = document.getElementById("shareCardHost");
+
+  // Pass 1: render header + bottom only, to measure their real content height
+  // (flexbox distribution inside html2canvas's clone isn't reliable enough to
+  // size the photo box with flex:1, so we compute its exact pixel height here).
+  host.innerHTML = cardShell(headerHtml + bottomHtml);
+  const headerH = document.getElementById("scHeader").getBoundingClientRect().height;
+  const bottomH = document.getElementById("scBottom").getBoundingClientRect().height;
+  const available = (dims.h - pad * 2) - headerH - bottomH - (photo.src ? photoMarginY * 2 : 0);
+  const photoHeightPx = photo.src ? Math.max(dims.w * 0.16, available) : 0;
+
+  const photoHtml = photo.src ? `
+    <div style="height:${photoHeightPx}px;margin:${photoMarginY}px 0;border-radius:22px;overflow:hidden;position:relative;flex:0 0 auto;
+      background-image:url('${photo.src}');background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.55);">
+      ${photo.caption ? `
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:${dims.w * 0.03}px;
+          background:linear-gradient(to top, rgba(10,13,18,0.68), transparent);
+          color:#fff;font-weight:700;font-size:${dims.w * 0.02}px;text-transform:uppercase;letter-spacing:0.03em;">
+          ${escHtml(photo.caption)}
+        </div>` : ""}
+    </div>` : "";
+
+  // Pass 2: final render with the photo box at its computed height
+  host.innerHTML = cardShell(headerHtml + photoHtml + bottomHtml);
 
   if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
   const node = document.getElementById("shareCard");
