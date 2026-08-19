@@ -226,9 +226,12 @@
 
   .pv-service-title { font-weight: 900; font-size: 15px; text-transform: uppercase; margin: 0 0 4px; }
   .pv-service-desc { font-size: 12.8px; line-height: 1.55; margin: 0 0 10px; }
-  .pv-concept-photo { width: 100%; max-height: 260px; object-fit: cover; border-radius: 14px; margin: 4px 0 14px;
-    display: block; border: 1px solid var(--pv-photo-border); }
-  .pv-table td.thumb img { width: 36px; height: 36px; object-fit: cover; border-radius: 7px; display: block; }
+  /* html2canvas does not reliably honor object-fit on <img>, so photo tiles are
+     painted as background-image (background-size:cover) instead — see pv-concept-photo
+     and .thumb-img below, and the equivalent technique used in exportShareImage(). */
+  .pv-concept-photo { width: 100%; height: 260px; border-radius: 14px; margin: 4px 0 14px;
+    background-size: cover; background-position: center; border: 1px solid var(--pv-photo-border); }
+  .pv-table td.thumb .thumb-img { width: 36px; height: 36px; border-radius: 7px; background-size: cover; background-position: center; }
   .pv-table td.thumb span { font-size: 11px; opacity: 0.5; }
   .pv-bullets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
   .pv-bullets span { font-size: 11px; font-weight: 500; background: var(--pv-chip-bg); border-radius: 999px;
@@ -885,7 +888,7 @@ function renderPreview() {
       <h3>Servicio</h3>
       <p class="pv-service-title">${escHtml(state.sesion.titulo) || "Servicio"}</p>
       <p class="pv-service-desc">${escHtml(state.sesion.descripcion)}</p>
-      ${state.sesion.fotoConcepto ? `<img class="pv-concept-photo" src="${escAttr(state.sesion.fotoConcepto)}" alt="Foto concepto">` : ""}
+      ${state.sesion.fotoConcepto ? `<div class="pv-concept-photo" style="background-image:url('${escAttr(state.sesion.fotoConcepto)}')"></div>` : ""}
       <div class="pv-bullets">${state.sesion.bullets.map(b => `<span>${escHtml(b)}</span>`).join("")}</div>
       <table class="pv-table">
         <thead><tr><th>Concepto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
@@ -898,7 +901,7 @@ function renderPreview() {
       <h3>Cuadros fotográficos</h3>
       <table class="pv-table">
         <thead><tr><th>Foto</th><th>Tamaño</th><th>Material</th><th>Marco</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
-        <tbody>${state.cuadros.items.map(it => `<tr><td class="thumb">${it.foto ? `<img src="${escAttr(it.foto)}" alt="">` : `<span>—</span>`}</td><td>${escHtml(it.tamano)}</td><td>${escHtml(it.material)}</td><td>${escHtml(it.marco)}</td><td class="num">${it.cantidad}</td><td class="num">${fmtMoney(it.precio)}</td><td class="num">${fmtMoney(it.cantidad * it.precio)}</td></tr>`).join("")}</tbody>
+        <tbody>${state.cuadros.items.map(it => `<tr><td class="thumb">${it.foto ? `<div class="thumb-img" style="background-image:url('${escAttr(it.foto)}')"></div>` : `<span>—</span>`}</td><td>${escHtml(it.tamano)}</td><td>${escHtml(it.material)}</td><td>${escHtml(it.marco)}</td><td class="num">${it.cantidad}</td><td class="num">${fmtMoney(it.precio)}</td><td class="num">${fmtMoney(it.cantidad * it.precio)}</td></tr>`).join("")}</tbody>
       </table>
       ${totalsBlock(t)}
       ${notesBlock(state.cuadros.notas)}
