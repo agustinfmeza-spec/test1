@@ -855,6 +855,20 @@ async function exportFullImage() {
   }, "image/png");
 }
 
+function shareSummaryChips() {
+  if (state.mode === "sesion") return state.sesion.bullets.slice(0, 4);
+  return state.cuadros.items.slice(0, 4).map(it => `${it.tamano} × ${it.cantidad}`);
+}
+
+function findFormaTrabajoBlock(re) {
+  return state.formaTrabajo.find(b => re.test(b.titulo || ""));
+}
+
+function truncate(s, max) {
+  s = String(s || "").trim();
+  return s.length > max ? s.slice(0, max - 1).trim() + "…" : s;
+}
+
 async function exportShareImage(size) {
   const dims = size === "story" ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
   const t = computeTotales();
@@ -862,6 +876,13 @@ async function exportShareImage(size) {
   const summaryLine = state.mode === "sesion"
     ? (state.sesion.titulo || "Servicio fotográfico")
     : `Cuadros fotográficos × ${state.cuadros.items.reduce((s, it) => s + it.cantidad, 0)} piezas`;
+  const chips = shareSummaryChips();
+  const pagoBlock = findFormaTrabajoBlock(/pago|se[ñn]a/i);
+  const inicioBlock = findFormaTrabajoBlock(/inicio/i);
+  const condLine = truncate(
+    (pagoBlock ? pagoBlock.cuerpo : "") || (inicioBlock ? inicioBlock.cuerpo : ""),
+    size === "story" ? 150 : 100
+  );
 
   const host = document.getElementById("shareCardHost");
   host.innerHTML = `
@@ -880,14 +901,32 @@ async function exportShareImage(size) {
         </div>
         <div>
           <div style="font-size:${dims.w * 0.022}px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;opacity:0.75;margin-bottom:6px;">Presupuesto</div>
-          <div style="font-weight:800;font-size:${dims.w * 0.038}px;margin-bottom:18px;max-width:90%;">${escHtml(summaryLine)}</div>
-          <div style="background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.6);border-radius:18px;padding:${dims.w * 0.04}px;margin-bottom:20px;">
+          <div style="font-weight:800;font-size:${dims.w * 0.038}px;margin-bottom:${dims.w * 0.016}px;max-width:92%;">${escHtml(summaryLine)}</div>
+          ${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:${dims.w * 0.012}px;margin-bottom:${dims.w * 0.024}px;">${chips.map(c => `<span style="font-size:${dims.w * 0.018}px;font-weight:600;background:rgba(10,13,18,0.08);border-radius:999px;padding:${dims.w * 0.008}px ${dims.w * 0.016}px;">${escHtml(c)}</span>`).join("")}</div>` : ""}
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:${dims.w * 0.012}px;margin-bottom:${dims.w * 0.02}px;">
+            <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+              <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Cliente</div>
+              <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${escHtml(state.cliente.nombre) || "—"}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+              <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Seña</div>
+              <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${state.senaPct}%</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.4);border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+              <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Válido hasta</div>
+              <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${fmtDate(validoHasta)}</div>
+            </div>
+          </div>
+
+          <div style="background:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.6);border-radius:18px;padding:${dims.w * 0.04}px;margin-bottom:${dims.w * 0.018}px;">
             <div style="font-size:${dims.w * 0.02}px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;opacity:0.75;">Total</div>
             <div style="font-weight:900;font-size:${dims.w * 0.07}px;letter-spacing:-0.02em;">${fmtMoney(t.total)}</div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:${dims.w * 0.022}px;font-weight:600;text-transform:uppercase;border-top:1px solid rgba(10,13,18,0.25);padding-top:14px;">
-            <span>Válido hasta ${fmtDate(validoHasta)}</span>
-            <span>${escHtml(state.estudio.telefono)} · ${escHtml(state.estudio.contacto)}</span>
+          ${condLine ? `<div style="font-size:${dims.w * 0.0165}px;line-height:1.5;opacity:0.85;margin-bottom:${dims.w * 0.018}px;max-width:96%;">${escHtml(condLine)}</div>` : ""}
+          <div style="display:flex;justify-content:space-between;font-size:${dims.w * 0.02}px;font-weight:600;text-transform:uppercase;border-top:1px solid rgba(10,13,18,0.25);padding-top:${dims.w * 0.014}px;">
+            <span>Presupuesto sujeto a modificación</span>
+            <span>${escHtml(state.estudio.telefono)}${state.estudio.telefono && state.estudio.contacto ? " · " : ""}${escHtml(state.estudio.contacto)}</span>
           </div>
         </div>
       </div>
