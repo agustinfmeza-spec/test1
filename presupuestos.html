@@ -195,6 +195,27 @@
     --pv-chip-bg: rgba(255,255,255,0.1);
     --pv-photo-border: rgba(255,255,255,0.18);
   }
+  /* "Intenso": bolder ring-glow treatment sampled from the Figma gradient board
+     (concentric/eclipse-style tiles) — same near-black base as oscuro, but a punchier,
+     more graphic accent instead of oscuro's soft diffuse corner glow. */
+  #previewArea[data-theme="intenso"] {
+    --pv-text: #f5efe6;
+    --pv-bg:
+      radial-gradient(circle 480px at 88% 92%, transparent 54%, rgba(233,115,24,0.4) 58%, transparent 64%),
+      radial-gradient(circle 340px at 88% 92%, rgba(255,205,132,0.5) 0%, rgba(180,41,8,0.55) 45%, transparent 72%),
+      radial-gradient(ellipse 500px 400px at 8% 6%, rgba(233,115,24,0.16) 0%, transparent 60%),
+      linear-gradient(160deg, #171310 0%, #050403 100%);
+    --pv-noise-opacity: 0.16;
+    --pv-noise-blend: overlay;
+    --pv-line-1: rgba(245,239,230,0.12);
+    --pv-line-25: rgba(245,239,230,0.22);
+    --pv-line-3: rgba(245,239,230,0.28);
+    --pv-card-bg: rgba(255,255,255,0.05);
+    --pv-card-border: rgba(255,255,255,0.14);
+    --pv-pill-bg: rgba(255,255,255,0.08);
+    --pv-chip-bg: rgba(255,255,255,0.1);
+    --pv-photo-border: rgba(255,255,255,0.18);
+  }
   #previewArea::after {
     content: ""; position: absolute; inset: 0; opacity: var(--pv-noise-opacity); mix-blend-mode: var(--pv-noise-blend); pointer-events: none;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
@@ -210,6 +231,8 @@
   .pv-brand-logo { max-height: 46px; max-width: 160px; object-fit: contain; margin-bottom: 6px; display: block; }
   .pv-contact { text-align: right; font-weight: 500; font-size: 12.5px; text-transform: uppercase; line-height: 1.7; }
   .pv-contact .arrow { margin-right: 6px; }
+  .pv-zone-tag { text-align: right; font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; line-height: 1.55; opacity: 0.65; margin-bottom: 5px; }
 
   .pv-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
   @media (max-width: 640px) { .pv-meta { grid-template-columns: repeat(2, 1fr); } }
@@ -230,8 +253,18 @@
      painted as background-image (background-size:cover) instead — see pv-concept-photo
      and .thumb-img below, and the equivalent technique used in exportShareImage(). */
   .pv-concept-photo { width: 100%; height: 260px; border-radius: 14px; margin: 4px 0 14px;
-    background-size: cover; background-position: center; border: 1px solid var(--pv-photo-border); }
+    background-size: cover; background-position: center; border: 1px solid var(--pv-photo-border);
+    position: relative; overflow: hidden; }
   .pv-table td.thumb .thumb-img { width: 36px; height: 36px; border-radius: 7px; background-size: cover; background-position: center; }
+  /* Handle/caption "printed" on the photo — from the Figma REFES/grilla reference,
+     where @rawspeed.ph sits directly over the hero image instead of only in the header. */
+  .pv-photo-scrim { position: absolute; left: 0; right: 0; bottom: 0; padding: 9px 13px;
+    background: linear-gradient(to top, rgba(10,13,18,0.68), transparent);
+    display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+  .pv-photo-scrim .handle { color: #fff; font-weight: 800; font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.04em; white-space: nowrap; }
+  .pv-photo-scrim .caption { color: rgba(255,255,255,0.85); font-weight: 600; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.03em; text-align: right; }
   .pv-table td.thumb span { font-size: 11px; opacity: 0.5; }
   .pv-bullets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
   .pv-bullets span { font-size: 11px; font-weight: 500; background: var(--pv-chip-bg); border-radius: 999px;
@@ -263,7 +296,17 @@
   /* Print-only cover page ("carta de presentación"): title + ultra-brief summary +
      reference photo. Hidden on screen and in image exports (display:none is skipped
      by html2canvas too); only rendered in @media print, see below. */
-  .pv-cover { display: none; }
+  .pv-cover { display: none; position: relative; }
+  /* Corner registration marks — the "spec sheet" annotation detail from the Figma
+     REFES mood board (poster references all carry small technical marks/labels).
+     Only on single-composition surfaces (cover page, share cards): on the flowing
+     multi-page body these would only land on the very first/last physical page. */
+  .pv-cover-mark { position: absolute; font-size: 13px; font-weight: 300; opacity: 0.3;
+    color: var(--pv-text); pointer-events: none; line-height: 1; }
+  .pv-cover-mark.tl { top: 0; left: 0; }
+  .pv-cover-mark.tr { top: 0; right: 0; }
+  .pv-cover-mark.bl { bottom: 0; left: 0; }
+  .pv-cover-mark.br { bottom: 0; right: 0; }
   .pv-cover-logo { max-height: 46px; max-width: 160px; object-fit: contain; margin-bottom: 8px; display: block; }
   .pv-cover-brand { font-weight: 900; font-size: 19px; text-transform: uppercase; letter-spacing: -0.02em; margin: 0; }
   .pv-cover-tag { font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; opacity: 0.75; margin: 3px 0 0; }
@@ -273,7 +316,7 @@
   .pv-cover-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
   .pv-cover-chips span { font-size: 11px; font-weight: 500; background: var(--pv-chip-bg); border-radius: 999px; padding: 3px 10px; }
   .pv-cover-photo { border-radius: 18px; background-size: cover; background-position: center;
-    border: 1px solid var(--pv-photo-border); margin-bottom: 20px; }
+    border: 1px solid var(--pv-photo-border); margin-bottom: 20px; position: relative; overflow: hidden; }
   .pv-cover-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
   .pv-cover-stats .k, .pv-cover-total .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; opacity: 0.7; }
   .pv-cover-stats .v { display: block; font-size: 14.5px; font-weight: 800; margin-top: 3px; }
@@ -378,6 +421,8 @@
         <label class="field"><span class="lbl">Teléfono</span><input id="f-estudioTelefono" placeholder="11-0000.0000"></label>
         <label class="field"><span class="lbl">Email o Instagram</span><input id="f-estudioContacto" placeholder="@tuestudio"></label>
       </div>
+      <label class="field"><span class="lbl">Zona de cobertura (opcional)</span><input id="f-estudioZona" placeholder="CABA · PBA"></label>
+      <span class="tcard-hint" style="margin:-6px 0 0;">Aparece como etiqueta chica arriba a la derecha, estilo ficha técnica. Dejalo vacío para ocultarla.</span>
       <div class="row2">
         <label class="field"><span class="lbl">Moneda</span>
           <select id="f-moneda">
@@ -476,6 +521,7 @@
       <div class="segmented" id="docThemeToggle">
         <button data-theme="calido" class="active">☀️ Cálido</button>
         <button data-theme="oscuro">🌑 Oscuro</button>
+        <button data-theme="intenso">🔥 Intenso</button>
       </div>
     </div>
     <div id="previewArea"><div class="pv-inner" id="pvInner"></div></div>
@@ -531,7 +577,7 @@ function defaultState() {
   return {
     mode: "sesion",
     previewTheme: "calido",
-    estudio: { nombre: "", rubro: "", telefono: "", contacto: "", moneda: "ARS", monedaOtra: "$", logo: "", creditoAutoria: "@rawspeed.ph / Agustín Meza" },
+    estudio: { nombre: "", rubro: "", telefono: "", contacto: "", zona: "", moneda: "ARS", monedaOtra: "$", logo: "", creditoAutoria: "@rawspeed.ph / Agustín Meza" },
     cliente: { nombre: "", contacto: "" },
     fecha: todayISO(),
     validezDias: 15,
@@ -622,6 +668,7 @@ function bindSimpleFields() {
     ["f-estudioRubro", () => state.estudio.rubro, v => state.estudio.rubro = v],
     ["f-estudioTelefono", () => state.estudio.telefono, v => state.estudio.telefono = v],
     ["f-estudioContacto", () => state.estudio.contacto, v => state.estudio.contacto = v],
+    ["f-estudioZona", () => state.estudio.zona, v => state.estudio.zona = v],
     ["f-monedaOtra", () => state.estudio.monedaOtra, v => state.estudio.monedaOtra = v],
     ["f-creditoAutoria", () => state.estudio.creditoAutoria, v => state.estudio.creditoAutoria = v],
     ["f-clienteNombre", () => state.cliente.nombre, v => state.cliente.nombre = v],
@@ -874,6 +921,8 @@ function renderFormaTrabajoForm() {
 
 function escAttr(s) { return String(s || "").replace(/"/g, "&quot;"); }
 function escHtml(s) { return String(s || "").replace(/</g, "&lt;"); }
+// "CABA · PBA" -> stacked mini-tag lines, echoing the Figma reference's "CABA 01 / PBA 02" tag.
+function zonaLines(s) { return String(s || "").split("·").map(x => escHtml(x.trim())).filter(Boolean).join("<br>"); }
 
 // ---------- mode toggle ----------
 document.getElementById("modeToggle").addEventListener("click", (e) => {
@@ -934,7 +983,9 @@ function renderPreview() {
       <h3>Servicio</h3>
       <p class="pv-service-title">${escHtml(state.sesion.titulo) || "Servicio"}</p>
       <p class="pv-service-desc">${escHtml(state.sesion.descripcion)}</p>
-      ${state.sesion.fotoConcepto ? `<div class="pv-concept-photo" style="background-image:url('${escAttr(state.sesion.fotoConcepto)}')"></div>` : ""}
+      ${state.sesion.fotoConcepto ? `<div class="pv-concept-photo" style="background-image:url('${escAttr(state.sesion.fotoConcepto)}')">
+        ${state.estudio.contacto ? `<div class="pv-photo-scrim"><span class="handle">${escHtml(state.estudio.contacto)}</span></div>` : ""}
+      </div>` : ""}
       <div class="pv-bullets">${state.sesion.bullets.map(b => `<span>${escHtml(b)}</span>`).join("")}</div>
       <table class="pv-table">
         <thead><tr><th>Concepto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
@@ -978,9 +1029,12 @@ function renderPreview() {
         <p class="pv-brand-name">${escHtml(state.estudio.nombre) || "Tu Estudio"}</p>
         <p class="pv-brand-tag">${escHtml(state.estudio.rubro) || "Fotografía"}</p>
       </div>
-      <div class="pv-contact">
-        <div><span class="arrow">→</span>${escHtml(state.estudio.telefono)}</div>
-        <div>${escHtml(state.estudio.contacto)}</div>
+      <div>
+        ${state.estudio.zona ? `<div class="pv-zone-tag">${zonaLines(state.estudio.zona)}</div>` : ""}
+        <div class="pv-contact">
+          <div><span class="arrow">→</span>${escHtml(state.estudio.telefono)}</div>
+          <div>${escHtml(state.estudio.contacto)}</div>
+        </div>
       </div>
     </div>
     <div class="pv-meta">
@@ -1028,6 +1082,10 @@ function coverCard(t, validoHasta) {
 
   return `
     <section class="pv-cover">
+      <span class="pv-cover-mark tl">+</span>
+      <span class="pv-cover-mark tr">+</span>
+      <span class="pv-cover-mark bl">+</span>
+      <span class="pv-cover-mark br">+</span>
       <div>
         ${state.estudio.logo ? `<img class="pv-cover-logo" src="${escAttr(state.estudio.logo)}" alt="logo">` : ""}
         <p class="pv-cover-brand">${escHtml(state.estudio.nombre) || "Tu Estudio"}</p>
@@ -1036,7 +1094,12 @@ function coverCard(t, validoHasta) {
       <h1 class="pv-cover-title">${escHtml(title)}</h1>
       <p class="pv-cover-summary">${escHtml(summary)}</p>
       ${chips.length ? `<div class="pv-cover-chips">${chips.map(c => `<span>${escHtml(c)}</span>`).join("")}</div>` : ""}
-      ${photo.src ? `<div class="pv-cover-photo" style="background-image:url('${escAttr(photo.src)}')"></div>` : ""}
+      ${photo.src ? `<div class="pv-cover-photo" style="background-image:url('${escAttr(photo.src)}')">
+        ${state.estudio.contacto || photo.caption ? `<div class="pv-photo-scrim">
+          <span class="handle">${escHtml(state.estudio.contacto)}</span>
+          <span class="caption">${escHtml(photo.caption)}</span>
+        </div>` : ""}
+      </div>` : ""}
       <div class="pv-cover-stats">
         <div><span class="k">Cliente</span><span class="v">${escHtml(state.cliente.nombre) || "—"}</span></div>
         <div><span class="k">Seña</span><span class="v">${state.senaPct}%</span></div>
@@ -1285,6 +1348,19 @@ const SHARE_THEMES = {
     totalBorder: "rgba(255,255,255,0.16)",
     line: "rgba(242,237,228,0.22)",
     photoBorder: "rgba(255,255,255,0.18)"
+  },
+  intenso: {
+    text: "#f5efe6",
+    bg: `radial-gradient(circle 640px at 88% 92%, transparent 54%, rgba(233,115,24,0.4) 58%, transparent 64%),
+      radial-gradient(circle 460px at 88% 92%, rgba(255,205,132,0.5) 0%, rgba(180,41,8,0.55) 45%, transparent 72%),
+      radial-gradient(ellipse 700px 550px at 8% 6%, rgba(233,115,24,0.16) 0%, transparent 60%),
+      linear-gradient(160deg, #171310 0%, #050403 100%)`,
+    pillBg: "rgba(255,255,255,0.08)",
+    chipBg: "rgba(255,255,255,0.1)",
+    totalBg: "rgba(255,255,255,0.06)",
+    totalBorder: "rgba(255,255,255,0.16)",
+    line: "rgba(245,239,230,0.22)",
+    photoBorder: "rgba(255,255,255,0.18)"
   }
 };
 
@@ -1355,11 +1431,16 @@ async function exportShareImage(size) {
     </div>`;
 
   function cardShell(innerHtml) {
+    const markCss = `position:absolute;font-weight:300;opacity:0.3;line-height:1;font-size:${dims.w * 0.02}px;pointer-events:none;`;
     return `
       <div id="shareCard" style="width:${dims.w}px;height:${dims.h}px;position:relative;overflow:hidden;
         font-family:'Archivo',sans-serif;color:${th.text};
         background: ${th.bg};">
         <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;padding:${pad}px;box-sizing:border-box;">
+          <span style="${markCss}top:0;left:0;">+</span>
+          <span style="${markCss}top:0;right:0;">+</span>
+          <span style="${markCss}bottom:0;left:0;">+</span>
+          <span style="${markCss}bottom:0;right:0;">+</span>
           ${innerHtml}
         </div>
       </div>`;
