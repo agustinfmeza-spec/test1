@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Generador de presupuestos fotográficos</title>
+<style>
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 300; font-display: swap; src: url('vendor/fonts/archivo-latin-300-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400; font-display: swap; src: url('vendor/fonts/archivo-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 500; font-display: swap; src: url('vendor/fonts/archivo-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 600; font-display: swap; src: url('vendor/fonts/archivo-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 700; font-display: swap; src: url('vendor/fonts/archivo-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 900; font-display: swap; src: url('vendor/fonts/archivo-latin-900-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: italic; font-weight: 400; font-display: swap; src: url('vendor/fonts/archivo-latin-400-italic.woff2') format('woff2'); }
+  @font-face { font-family: 'Archivo'; font-style: italic; font-weight: 500; font-display: swap; src: url('vendor/fonts/archivo-latin-500-italic.woff2') format('woff2'); }
+  :root {
+    --bg: #f4f1ec;
+    --panel: #ffffff;
+    --panel-soft: #fbfaf7;
+    --tcard-grad-1: #fafaf8;
+    --tcard-grad-2: #f1efe9;
+    --ink: #16181c;
+    --muted: #6c7280;
+    --line: #e6e2da;
+    --accent: #16181c;
+    --accent-soft: #eceae4;
+    --accent-brand: #16181c;
+    --accent-brand-2: #0e0f12;
+    --danger: #b3432f;
+    --chip: #f0eee8;
+    --shadow: 0 2px 10px rgba(20, 20, 20, 0.06);
+    --radius: 16px;
+  }
+  html[data-app-theme="dark"] {
+    --bg: #17140f;
+    --panel: #221e18;
+    --panel-soft: #1c1914;
+    --tcard-grad-1: #241f18;
+    --tcard-grad-2: #191510;
+    --ink: #f2ece1;
+    --muted: #a89d8c;
+    --line: #362f26;
+    --accent: #f2ece1;
+    --accent-soft: #2c261e;
+    --accent-brand: #d1552b;
+    --accent-brand-2: #a53f1e;
+    --danger: #ff8a6b;
+    --chip: #29241d;
+    --shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Archivo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+  header.top {
+    padding: 20px 24px; display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); background: var(--panel);
+    position: sticky; top: 0; z-index: 40;
+  }
+  header.top h1 { font-size: 17px; margin: 0; letter-spacing: -0.02em; }
+  header.top .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+  /* Segmented toggle (module switch) */
+  .segmented {
+    display: inline-flex; padding: 3px; background: var(--chip); border: 1px solid var(--line);
+    border-radius: 12px; gap: 2px;
+  }
+  .segmented button {
+    border: none; background: transparent; padding: 8px 16px; font-family: inherit;
+    font-size: 13px; font-weight: 600; color: var(--muted); border-radius: 9px; cursor: pointer;
+    transition: all .15s ease; white-space: nowrap;
+  }
+  .segmented button.active {
+    background: linear-gradient(to bottom, var(--accent-brand), var(--accent-brand-2)); color: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
+
+  main.layout {
+    display: grid; grid-template-columns: minmax(320px, 480px) 1fr; gap: 22px;
+    padding: 22px 24px 80px; max-width: 1680px; margin: 0 auto; align-items: start;
+  }
+  @media (max-width: 1050px) { main.layout { grid-template-columns: 1fr; } }
+
+  /* --- Nested-border "texture card" (cult-ui inspired) for the form UI --- */
+  .tcard {
+    border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.7);
+    background: linear-gradient(to bottom, var(--tcard-grad-1), var(--tcard-grad-2));
+    margin-bottom: 16px;
+  }
+  .tcard > .tcard-l1 { border-radius: calc(var(--radius) - 1px); border: 1px solid rgba(0,0,0,0.06); }
+  .tcard > .tcard-l1 > .tcard-l2 { border-radius: calc(var(--radius) - 2px); border: 1px solid rgba(255,255,255,0.6); }
+  .tcard > .tcard-l1 > .tcard-l2 > .tcard-l3 {
+    border-radius: calc(var(--radius) - 3px); border: 1px solid rgba(0,0,0,0.05);
+    background: var(--panel); padding: 16px 18px;
+  }
+  .tcard h2 {
+    font-size: 12px; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; color: var(--ink);
+  }
+  .tcard .tcard-hint { font-size: 11.5px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+
+  label.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  label.field span.lbl {
+    font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+  }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  input, select, textarea {
+    font-family: inherit; font-size: 13.5px; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 9px; background: var(--panel); color: var(--ink); width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: #b9b3a6; }
+  textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
+
+  /* Tactile buttons (cult-ui texture-button inspired) */
+  .btn {
+    border: none; padding: 1px; border-radius: 11px; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn > span {
+    display: flex; align-items: center; gap: 6px; padding: 9px 15px; border-radius: 10px;
+    transition: filter .15s ease;
+  }
+  .btn:hover > span { filter: brightness(1.06); }
+  .btn:active > span { filter: brightness(0.94); }
+  .btn.primary { background: linear-gradient(to bottom, rgba(0,0,0,.6), #000); }
+  .btn.primary > span { background: linear-gradient(to bottom, var(--accent-brand), var(--accent-brand-2)); color: #fff; }
+  .btn.ghost { background: rgba(0,0,0,.08); }
+  .btn.ghost > span { background: linear-gradient(to bottom, var(--panel), var(--panel-soft)); color: var(--ink); }
+  .btn.danger { background: rgba(179,67,47,.25); }
+  .btn.danger > span { background: linear-gradient(to bottom, #fdf1ee, #fbe4de); color: var(--danger); }
+  .btn.sm > span { padding: 6px 10px; font-size: 12px; }
+  .btn.block { display: flex; width: 100%; } .btn.block > span { width: 100%; justify-content: center; }
+
+  .item-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: var(--panel-soft); }
+  .item-row .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .item-row .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .item-row-foot { display: flex; justify-content: space-between; align-items: center; }
+  .item-row-foot .subtotal { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+
+  .block-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: var(--panel-soft); }
+  .block-row input { margin-bottom: 6px; }
+
+  .logo-upload { display: flex; align-items: center; gap: 12px; }
+  .logo-preview {
+    width: 64px; height: 64px; border: 1px dashed var(--line); border-radius: 10px;
+    background: var(--panel-soft); display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .logo-preview span { font-size: 9.5px; color: var(--muted); text-align: center; padding: 0 4px; }
+  .logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .logo-upload-actions { display: flex; flex-direction: column; gap: 6px; }
+  .file-btn { cursor: pointer; }
+
+  .hidden { display: none !important; }
+
+  /* ============== PREVIEW (matches Figma "Presu" reference) ============== */
+  .preview-wrap { position: sticky; top: 90px; }
+  #previewArea {
+    --pv-text: #0a0d12;
+    --pv-bg:
+      radial-gradient(ellipse 900px 700px at 12% 6%, #ffe3bb 0%, transparent 60%),
+      radial-gradient(ellipse 900px 900px at 90% 100%, #e98c6c 0%, transparent 60%),
+      radial-gradient(ellipse 700px 700px at 70% 30%, #f4b79a 0%, transparent 65%),
+      linear-gradient(135deg, #fff3de 0%, #f0a888 100%);
+    --pv-noise-opacity: 0.05;
+    --pv-noise-blend: multiply;
+    --pv-line-1: rgba(10,13,18,0.1);
+    --pv-line-25: rgba(10,13,18,0.25);
+    --pv-line-3: rgba(10,13,18,0.3);
+    --pv-card-bg: rgba(255,255,255,0.24);
+    --pv-card-border: rgba(255,255,255,0.55);
+    --pv-pill-bg: rgba(255,255,255,0.55);
+    --pv-chip-bg: rgba(10,13,18,0.08);
+    --pv-photo-border: rgba(255,255,255,0.6);
+    border-radius: 22px; overflow: hidden; box-shadow: 0 18px 50px rgba(30,15,5,0.18);
+    position: relative; color: var(--pv-text); background: var(--pv-bg);
+    transition: background .2s ease;
+  }
+  #previewArea[data-theme="oscuro"] {
+    --pv-text: #f2ede4;
+    --pv-bg:
+      radial-gradient(ellipse 900px 700px at 15% 10%, rgba(255,255,255,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse 1000px 1000px at 88% 96%, rgba(120,55,25,0.55) 0%, transparent 65%),
+      radial-gradient(ellipse 700px 700px at 65% 25%, rgba(70,30,15,0.5) 0%, transparent 65%),
+      linear-gradient(160deg, #232019 0%, #080705 100%);
+    --pv-noise-opacity: 0.14;
+    --pv-noise-blend: overlay;
+    --pv-line-1: rgba(242,237,228,0.12);
+    --pv-line-25: rgba(242,237,228,0.22);
+    --pv-line-3: rgba(242,237,228,0.28);
+    --pv-card-bg: rgba(255,255,255,0.055);
+    --pv-card-border: rgba(255,255,255,0.14);
+    --pv-pill-bg: rgba(255,255,255,0.08);
+    --pv-chip-bg: rgba(255,255,255,0.1);
+    --pv-photo-border: rgba(255,255,255,0.18);
+  }
+  /* "Intenso": bolder ring-glow treatment sampled from the Figma gradient board
+     (concentric/eclipse-style tiles) — same near-black base as oscuro, but a punchier,
+     more graphic accent instead of oscuro's soft diffuse corner glow. */
+  #previewArea[data-theme="intenso"] {
+    --pv-text: #f5efe6;
+    --pv-bg:
+      radial-gradient(circle 480px at 88% 92%, transparent 54%, rgba(233,115,24,0.4) 58%, transparent 64%),
+      radial-gradient(circle 340px at 88% 92%, rgba(255,205,132,0.5) 0%, rgba(180,41,8,0.55) 45%, transparent 72%),
+      radial-gradient(ellipse 500px 400px at 8% 6%, rgba(233,115,24,0.16) 0%, transparent 60%),
+      linear-gradient(160deg, #171310 0%, #050403 100%);
+    --pv-noise-opacity: 0.16;
+    --pv-noise-blend: overlay;
+    --pv-line-1: rgba(245,239,230,0.12);
+    --pv-line-25: rgba(245,239,230,0.22);
+    --pv-line-3: rgba(245,239,230,0.28);
+    --pv-card-bg: rgba(255,255,255,0.05);
+    --pv-card-border: rgba(255,255,255,0.14);
+    --pv-pill-bg: rgba(255,255,255,0.08);
+    --pv-chip-bg: rgba(255,255,255,0.1);
+    --pv-photo-border: rgba(255,255,255,0.18);
+  }
+  #previewArea::after {
+    content: ""; position: absolute; inset: 0; opacity: var(--pv-noise-opacity); mix-blend-mode: var(--pv-noise-blend); pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  #previewArea .pv-inner { position: relative; z-index: 1; padding: 34px 34px 30px; }
+
+  .pv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+    border-bottom: 2px solid var(--pv-text); padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+  .pv-brand-name { font-weight: 900; font-size: clamp(22px, 3vw, 30px); text-transform: uppercase;
+    letter-spacing: -0.03em; line-height: 1; margin: 0; }
+  .pv-brand-tag { font-weight: 500; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.02em;
+    margin: 4px 0 0; }
+  .pv-brand-logo { max-height: 46px; max-width: 160px; object-fit: contain; margin-bottom: 6px; display: block; }
+  .pv-contact { text-align: right; font-weight: 500; font-size: 12.5px; text-transform: uppercase; line-height: 1.7; }
+  .pv-contact .arrow { margin-right: 6px; }
+  .pv-zone-tag { text-align: right; font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; line-height: 1.55; opacity: 0.65; margin-bottom: 5px; }
+
+  .pv-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+  @media (max-width: 640px) { .pv-meta { grid-template-columns: repeat(2, 1fr); } }
+  .pv-pill { background: var(--pv-pill-bg); border-radius: 9px; padding: 7px 11px; }
+  .pv-pill .k { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; opacity: 0.75; }
+  .pv-pill .v { font-size: 12.5px; font-weight: 600; text-transform: uppercase; margin-top: 1px; }
+
+  .pv-card {
+    background: var(--pv-card-bg); border: 1px solid var(--pv-card-border);
+    border-radius: 14px; padding: 18px 20px; margin-bottom: 14px;
+  }
+  .pv-card h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; font-weight: 700;
+    letter-spacing: 0.06em; border-bottom: 1px solid var(--pv-line-25); padding-bottom: 8px; }
+
+  .pv-service-title { font-weight: 900; font-size: 15px; text-transform: uppercase; margin: 0 0 4px; }
+  .pv-service-desc { font-size: 12.8px; line-height: 1.55; margin: 0 0 10px; }
+  /* html2canvas does not reliably honor object-fit on <img>, so photo tiles are
+     painted as background-image (background-size:cover) instead — see pv-concept-photo
+     and .thumb-img below, and the equivalent technique used in exportShareImage(). */
+  .pv-concept-photo { width: 100%; height: 260px; border-radius: 14px; margin: 4px 0 14px;
+    background-size: cover; background-position: center; border: 1px solid var(--pv-photo-border);
+    position: relative; overflow: hidden; }
+  .pv-table td.thumb .thumb-img { width: 36px; height: 36px; border-radius: 7px; background-size: cover; background-position: center; }
+  /* Handle/caption "printed" on the photo — from the Figma REFES/grilla reference,
+     where @rawspeed.ph sits directly over the hero image instead of only in the header. */
+  .pv-photo-scrim { position: absolute; left: 0; right: 0; bottom: 0; padding: 9px 13px;
+    background: linear-gradient(to top, rgba(10,13,18,0.68), transparent);
+    display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+  .pv-photo-scrim .handle { color: #fff; font-weight: 800; font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.04em; white-space: nowrap; }
+  .pv-photo-scrim .caption { color: rgba(255,255,255,0.85); font-weight: 600; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.03em; text-align: right; }
+  .pv-table td.thumb span { font-size: 11px; opacity: 0.5; }
+  .pv-bullets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .pv-bullets span { font-size: 11px; font-weight: 500; background: var(--pv-chip-bg); border-radius: 999px;
+    padding: 3px 10px; }
+
+  table.pv-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 4px; }
+  table.pv-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+    font-weight: 700; opacity: 0.7; padding: 0 6px 6px; border-bottom: 1px solid var(--pv-line-25); }
+  table.pv-table td { padding: 7px 6px; border-bottom: 1px solid var(--pv-line-1); }
+  table.pv-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .pv-notes { font-size: 11.8px; line-height: 1.6; margin: 10px 0 0; }
+  .pv-notes p { margin: 0 0 4px; }
+
+  .pv-totals { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--pv-line-25); }
+  .pv-totals .line { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0; }
+  .pv-totals .line.total { font-weight: 900; font-size: 16px; border-top: 1px solid var(--pv-line-3);
+    margin-top: 6px; padding-top: 8px; }
+
+  .pv-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .pv-2col { grid-template-columns: 1fr; } }
+  .pv-sub { margin-bottom: 12px; }
+  .pv-sub .st { font-weight: 900; font-size: 11.5px; text-transform: uppercase; margin: 0 0 4px; }
+  .pv-sub .sb { font-size: 11.8px; line-height: 1.55; margin: 0; }
+
+  .pv-footer { text-align: center; font-size: 10.5px; opacity: 0.65; margin-top: 6px; text-transform: uppercase;
+    letter-spacing: 0.05em; }
+
+  /* Print-only cover page ("carta de presentación"): title + ultra-brief summary +
+     reference photo. Hidden on screen and in image exports (display:none is skipped
+     by html2canvas too); only rendered in @media print, see below. */
+  .pv-cover { display: none; position: relative; }
+  /* Corner registration marks — the "spec sheet" annotation detail from the Figma
+     REFES mood board (poster references all carry small technical marks/labels).
+     Only on single-composition surfaces (cover page, share cards): on the flowing
+     multi-page body these would only land on the very first/last physical page. */
+  .pv-cover-mark { position: absolute; font-size: 13px; font-weight: 300; opacity: 0.3;
+    color: var(--pv-text); pointer-events: none; line-height: 1; }
+  .pv-cover-mark.tl { top: 0; left: 0; }
+  .pv-cover-mark.tr { top: 0; right: 0; }
+  .pv-cover-mark.bl { bottom: 0; left: 0; }
+  .pv-cover-mark.br { bottom: 0; right: 0; }
+  .pv-cover-logo { max-height: 46px; max-width: 160px; object-fit: contain; margin-bottom: 8px; display: block; }
+  .pv-cover-brand { font-weight: 900; font-size: 19px; text-transform: uppercase; letter-spacing: -0.02em; margin: 0; }
+  .pv-cover-tag { font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; opacity: 0.75; margin: 3px 0 0; }
+  .pv-cover-title { font-weight: 900; font-size: 40px; text-transform: uppercase; letter-spacing: -0.03em;
+    line-height: 1.05; margin: 18px 0 10px; max-width: 88%; }
+  .pv-cover-summary { font-size: 13.5px; line-height: 1.6; max-width: 78%; margin: 0 0 14px; opacity: 0.9; }
+  .pv-cover-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+  .pv-cover-chips span { font-size: 11px; font-weight: 500; background: var(--pv-chip-bg); border-radius: 999px; padding: 3px 10px; }
+  .pv-cover-photo { border-radius: 18px; background-size: cover; background-position: center;
+    border: 1px solid var(--pv-photo-border); margin-bottom: 20px; position: relative; overflow: hidden; }
+  .pv-cover-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+  .pv-cover-stats .k, .pv-cover-total .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; opacity: 0.7; }
+  .pv-cover-stats .v { display: block; font-size: 14.5px; font-weight: 800; margin-top: 3px; }
+  .pv-cover-total { background: var(--pv-card-bg); border: 1px solid var(--pv-card-border); border-radius: 14px;
+    padding: 14px 18px; margin-bottom: 14px; }
+  .pv-cover-total .v { display: block; font-weight: 900; font-size: 27px; letter-spacing: -0.02em; margin-top: 2px; }
+  .pv-cover-line { font-size: 11.5px; line-height: 1.5; opacity: 0.85; margin: 0 0 7px; max-width: 92%; }
+  .pv-cover-credit { font-size: 10.5px; line-height: 1.45; opacity: 0.7; font-style: italic; margin: 6px 0 10px; max-width: 92%; }
+  .pv-cover-footer { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; margin: 0;
+    border-top: 1px solid var(--pv-line-1); padding-top: 10px; }
+
+  /* Preview/document theme switch */
+  .theme-switch { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .theme-switch .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+
+  .export-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* Modal (image export options) */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,15,15,0.5); display: none;
+    align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--panel); border-radius: 16px; width: 100%; max-width: 420px;
+    box-shadow: 0 12px 40px rgba(15,15,15,0.3); padding: 20px; }
+  .modal h2 { margin: 0 0 4px; font-size: 16px; }
+  .modal .sub { font-size: 12px; color: var(--muted); margin: 0 0 16px; }
+  .size-opt { display: flex; gap: 10px; margin-bottom: 16px; }
+  .size-opt label { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 10px; cursor: pointer;
+    font-size: 12.5px; text-align: center; }
+  .size-opt input { width: auto; margin-right: 6px; }
+  .size-opt label:has(input:checked) { border-color: var(--ink); background: var(--accent-soft); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+  #shareCardHost { position: fixed; left: -99999px; top: 0; }
+
+  @media print {
+    @page { size: letter; margin: 12mm; }
+    html, body, #previewArea, #previewArea * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    body * { visibility: hidden; }
+    #previewArea, #previewArea * { visibility: visible; }
+    .preview-wrap { position: static !important; }
+    #previewArea {
+      position: static !important; margin: 0; border-radius: 0; box-shadow: none; width: 100%;
+      overflow: visible !important; height: auto !important;
+    }
+    #previewArea .pv-inner { overflow: visible !important; }
+    header.top, #formCol, .export-bar { display: none !important; }
+    .pv-card, .pv-head, .pv-meta, .pv-sub, table.pv-table tr {
+      break-inside: avoid-page; page-break-inside: avoid;
+    }
+
+    .pv-cover {
+      display: flex !important; flex-direction: column;
+      min-height: 225mm;
+      break-after: page; page-break-after: always;
+    }
+    .pv-cover-photo { flex: 1 1 120px; min-height: 120px; }
+  }
+
+  /* Direct-download PDF capture mode: same cover-page rules as @media print above,
+     toggled via JS on an offscreen clone (see exportPdfDirect()). This lets us build
+     the PDF as a real file with jsPDF instead of relying on window.print(), which is
+     unreliable on iOS/iPadOS (no OS print sheet in home-screen apps, inconsistent
+     background/color support in Mobile Safari's print pipeline). */
+  html[data-pdf-capture="1"] .pv-cover {
+    display: flex !important; flex-direction: column;
+    min-height: var(--pdf-page-h, 965px);
+  }
+  html[data-pdf-capture="1"] .pv-cover-photo { flex: 1 1 120px; min-height: 120px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1>📸 Generador de presupuestos fotográficos</h1>
+    <div class="sub">Armá el presupuesto, mirá la vista previa y exportalo como imagen o PDF</div>
+  </div>
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+    <div class="segmented" id="modeToggle">
+      <button data-mode="sesion" class="active">Sesión / Evento</button>
+      <button data-mode="cuadros">Cuadros fotográficos</button>
+    </div>
+    <button class="btn ghost sm" id="appThemeToggle" type="button" title="Alternar modo oscuro de la app"><span>🌙 Modo oscuro</span></button>
+  </div>
+</header>
+
+<main class="layout">
+  <div id="formCol">
+
+    <!-- Estudio -->
+    <div class="tcard"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Estudio</h2>
+      <div class="row2">
+        <label class="field"><span class="lbl">Nombre del estudio</span><input id="f-estudioNombre" placeholder="Tu Estudio"></label>
+        <label class="field"><span class="lbl">Rubro / tagline</span><input id="f-estudioRubro" placeholder="Fotografía de retrato"></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span class="lbl">Teléfono</span><input id="f-estudioTelefono" placeholder="11-0000.0000"></label>
+        <label class="field"><span class="lbl">Email o Instagram</span><input id="f-estudioContacto" placeholder="@tuestudio"></label>
+      </div>
+      <label class="field"><span class="lbl">Zona de cobertura (opcional)</span><input id="f-estudioZona" placeholder="CABA · PBA"></label>
+      <span class="tcard-hint" style="margin:-6px 0 0;">Aparece como etiqueta chica arriba a la derecha, estilo ficha técnica. Dejalo vacío para ocultarla.</span>
+      <div class="row2">
+        <label class="field"><span class="lbl">Moneda</span>
+          <select id="f-moneda">
+            <option value="ARS">ARS — Peso argentino</option>
+            <option value="USD">USD — Dólar</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="OTRA">Otra (símbolo libre)</option>
+          </select>
+        </label>
+        <label class="field" id="f-monedaOtraWrap"><span class="lbl">Símbolo</span><input id="f-monedaOtra" placeholder="$"></label>
+      </div>
+      <label class="field">
+        <span class="lbl">Logo (imagen, opcional)</span>
+        <div class="logo-upload">
+          <div class="logo-preview" id="logoPreview"><span>Sin logo</span></div>
+          <div class="logo-upload-actions">
+            <label class="btn ghost sm file-btn"><span>📁 Subir imagen</span><input type="file" id="f-logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden></label>
+            <button class="btn danger sm" id="f-logoRemove" type="button"><span>✕ Quitar</span></button>
+          </div>
+        </div>
+        <span class="tcard-hint" style="margin:4px 0 0;">PNG, JPG, WEBP o SVG. Se ajusta automáticamente al tamaño de la plantilla, sin deformarse.</span>
+        <span class="tcard-hint" id="logoErrorMsg" style="margin:2px 0 0; color: var(--danger); display:none;"></span>
+      </label>
+      <label class="field"><span class="lbl">Crédito de autoría (difusión de imágenes)</span><input id="f-creditoAutoria" placeholder="@rawspeed.ph / Agustín Meza"></label>
+      <span class="tcard-hint" style="margin:-6px 0 0;">Aparece en las imágenes exportadas para redes, como mención obligatoria del autor/productor de las fotos.</span>
+    </div></div></div></div>
+
+    <!-- Cliente y fechas -->
+    <div class="tcard"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Cliente y fechas</h2>
+      <div class="row2">
+        <label class="field"><span class="lbl">Cliente</span><input id="f-clienteNombre" placeholder="Nombre del cliente"></label>
+        <label class="field"><span class="lbl">Contacto del cliente</span><input id="f-clienteContacto" placeholder="Tel / email"></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span class="lbl">Fecha de confección</span><input type="date" id="f-fecha"></label>
+        <label class="field"><span class="lbl">Validez (días)</span><input type="number" id="f-validezDias" min="1" value="15"></label>
+      </div>
+      <label class="field"><span class="lbl">Seña / anticipo (%)</span><input type="number" id="f-senaPct" min="0" max="100" value="50"></label>
+    </div></div></div></div>
+
+    <!-- Módulo SESIÓN -->
+    <div class="tcard" id="form-sesion"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Servicio (sesión / evento)</h2>
+      <label class="field"><span class="lbl">Título del servicio</span><input id="f-sTitulo" placeholder="Ej: Book fotográfico / Cobertura de boda"></label>
+      <label class="field"><span class="lbl">Descripción</span><textarea id="f-sDescripcion" placeholder="Detalle del servicio, locación, cantidad de cámaras, etc."></textarea></label>
+      <label class="field">
+        <span class="lbl">Foto concepto (tema del presupuesto)</span>
+        <div class="logo-upload">
+          <div class="logo-preview" id="fotoConceptoPreview"><span>Sin foto</span></div>
+          <div class="logo-upload-actions">
+            <label class="btn ghost sm file-btn"><span>📁 Subir foto</span><input type="file" id="f-fotoConceptoFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+            <button class="btn danger sm" id="f-fotoConceptoRemove" type="button"><span>✕ Quitar</span></button>
+          </div>
+        </div>
+        <span class="tcard-hint" style="margin:4px 0 0;">Se muestra destacada en el resumen para redes, para que no quede una zona vacía.</span>
+      </label>
+      <label class="field"><span class="lbl">Incluye (una línea por ítem)</span><textarea id="f-sBullets" placeholder="Planificación y scouting&#10;Shooting de 2 a 4 h&#10;Retoque avanzado de 15 imágenes"></textarea></label>
+      <div class="lbl" style="margin-bottom:8px;">Ítems del presupuesto</div>
+      <div id="sesionItems"></div>
+      <button class="btn ghost sm" id="addSesionItem"><span>➕ Agregar ítem</span></button>
+      <label class="field" style="margin-top:12px;"><span class="lbl">Descuento / bonificación (%)</span><input type="number" id="f-sDescuento" min="0" max="100" value="0"></label>
+      <label class="field"><span class="lbl">Notas del desglose (una línea por nota)</span><textarea id="f-sNotas" placeholder="* Sesión de máximo 4 horas en hasta 3 locaciones.&#10;* Selección de 15 fotografías para edición avanzada."></textarea></label>
+    </div></div></div></div>
+
+    <!-- Módulo CUADROS -->
+    <div class="tcard hidden" id="form-cuadros"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Cuadros fotográficos</h2>
+      <p class="tcard-hint">Cada línea es una pieza: tamaño, material, marco/terminación, cantidad, precio unitario y, opcionalmente, la foto de esa pieza. La primera pieza con foto se destaca en el resumen para redes.</p>
+      <div id="cuadrosItems"></div>
+      <button class="btn ghost sm" id="addCuadroItem"><span>➕ Agregar pieza</span></button>
+      <label class="field" style="margin-top:12px;"><span class="lbl">Descuento / bonificación (%)</span><input type="number" id="f-cDescuento" min="0" max="100" value="0"></label>
+      <label class="field"><span class="lbl">Notas del desglose (una línea por nota)</span><textarea id="f-cNotas" placeholder="* Los tiempos de producción son de 7 días hábiles.&#10;* El envío se cotiza aparte según destino."></textarea></label>
+    </div></div></div></div>
+
+    <!-- Entregables -->
+    <div class="tcard"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Entregables</h2>
+      <div id="entregablesList"></div>
+      <button class="btn ghost sm" id="addEntregable"><span>➕ Agregar bloque</span></button>
+    </div></div></div></div>
+
+    <!-- Forma de trabajo -->
+    <div class="tcard"><div class="tcard-l1"><div class="tcard-l2"><div class="tcard-l3">
+      <h2>Forma de trabajo</h2>
+      <div id="formaTrabajoList"></div>
+      <button class="btn ghost sm" id="addFormaTrabajo"><span>➕ Agregar bloque</span></button>
+    </div></div></div></div>
+
+    <button class="btn danger block" id="resetAll"><span>🗑 Reiniciar todo</span></button>
+  </div>
+
+  <div class="preview-wrap">
+    <div class="theme-switch">
+      <span class="lbl">Tema del documento</span>
+      <div class="segmented" id="docThemeToggle">
+        <button data-theme="calido" class="active">☀️ Cálido</button>
+        <button data-theme="oscuro">🌑 Oscuro</button>
+        <button data-theme="intenso">🔥 Intenso</button>
+      </div>
+    </div>
+    <div id="previewArea"><div class="pv-inner" id="pvInner"></div></div>
+    <div class="export-bar">
+      <button class="btn primary" id="openImageExport"><span>🖼 Exportar imagen</span></button>
+      <button class="btn ghost" id="exportPdf"><span>📄 Exportar PDF</span></button>
+    </div>
+    <p class="tcard-hint" style="margin-top:8px;">El PDF se genera y descarga directo (funciona en iPhone/iPad, sin pasar por el diálogo de impresión). Incluye una portada con título, resumen y foto de referencia, seguida del presupuesto completo, sin cortar secciones entre páginas.</p>
+  </div>
+</main>
+
+<!-- Modal: export imagen -->
+<div class="modal-backdrop" id="imgModal">
+  <div class="modal">
+    <h2>Exportar imagen</h2>
+    <p class="sub">Elegí qué querés descargar</p>
+    <div class="size-opt">
+      <label><input type="radio" name="imgSize" value="full" checked> Presupuesto<br>completo</label>
+      <label><input type="radio" name="imgSize" value="post"> Post (resumen)<br>1080×1350</label>
+      <label><input type="radio" name="imgSize" value="story"> Story (resumen)<br>1080×1920</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost sm" id="imgModalCancel"><span>Cancelar</span></button>
+      <button class="btn primary sm" id="imgModalGo"><span>⬇ Descargar PNG</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: confirm -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <h2 id="confirmTitle">¿Confirmar?</h2>
+    <p class="sub" id="confirmMsg"></p>
+    <div class="modal-actions">
+      <button class="btn ghost sm" id="confirmCancel"><span>Cancelar</span></button>
+      <button class="btn danger sm" id="confirmOk"><span>Sí, continuar</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="shareCardHost"></div>
+
+<script src="vendor/html2canvas.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script>
+const STORAGE_KEY = "presupuestos_fotograficos_v1";
+const CUR_SYMBOLS = { ARS: "ARS $", USD: "US$", EUR: "€" };
+
+function uid() { return Math.random().toString(36).slice(2, 9); }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+function defaultState() {
+  return {
+    mode: "sesion",
+    previewTheme: "calido",
+    estudio: { nombre: "", rubro: "", telefono: "", contacto: "", zona: "", moneda: "ARS", monedaOtra: "$", logo: "", creditoAutoria: "@rawspeed.ph / Agustín Meza" },
+    cliente: { nombre: "", contacto: "" },
+    fecha: todayISO(),
+    validezDias: 15,
+    senaPct: 50,
+    sesion: {
+      titulo: "Book fotográfico",
+      descripcion: "Sesión en locación a definir con el cliente. Producción y edición incluidas.",
+      fotoConcepto: "",
+      bullets: ["Planificación y scouting", "Shooting de 2 a 4 h", "Retoque avanzado de 15 imágenes"],
+      items: [
+        { id: uid(), concepto: "Sesión fotográfica (2 a 4 h)", cantidad: 1, precio: 120000 },
+        { id: uid(), concepto: "Retoque avanzado (15 imágenes)", cantidad: 1, precio: 23000 }
+      ],
+      descuentoPct: 0,
+      notas: ["* Selección de hasta 15 fotografías para edición avanzada.", "* Locación a coordinar con el cliente; gastos puntuales se detallan aparte."]
+    },
+    cuadros: {
+      items: [
+        { id: uid(), tamano: "30x40 cm", material: "Canvas", marco: "Marco flotante negro", cantidad: 2, precio: 18000, foto: "" },
+        { id: uid(), tamano: "40x60 cm", material: "Papel Fine Art", marco: "Sin marco", cantidad: 1, precio: 22000, foto: "" }
+      ],
+      descuentoPct: 0,
+      notas: ["* Los tiempos de producción son de 7 días hábiles desde la aprobación.", "* El envío a domicilio se cotiza aparte según destino."]
+    },
+    entregables: {
+      sesion: [
+        { id: uid(), titulo: "Carpeta de proyecto", cuerpo: "Fotografías crudas y editadas en alta resolución. Entrega digital mediante enlace con 3 días de validez para su descarga." },
+        { id: uid(), titulo: "Planificación", cuerpo: "La conceptualización se comparte con el cliente a modo referencial y es de carácter confidencial." },
+        { id: uid(), titulo: "Derechos de autoría", cuerpo: "La divulgación de las imágenes en plataformas digitales implica la mención de @rawspeed.ph / Agustín Meza como autor creativo y productor de la obra. Queda prohibida su reproducción sin esa mención." }
+      ],
+      cuadros: [
+        { id: uid(), titulo: "Producción", cuerpo: "Impresión y armado de cada pieza según tamaño, material y terminación seleccionados." },
+        { id: uid(), titulo: "Tiempos de entrega", cuerpo: "El plazo de producción comienza tras la aprobación del presupuesto y el pago de la seña." },
+        { id: uid(), titulo: "Envío / retiro", cuerpo: "Las piezas pueden retirarse en el estudio o enviarse a domicilio; el costo de envío se cotiza aparte." }
+      ]
+    },
+    formaTrabajo: [
+      { id: uid(), titulo: "Inicio", cuerpo: "Una vez aprobado el presupuesto y recibida la seña, se coordina la fecha de trabajo." },
+      { id: uid(), titulo: "Pago", cuerpo: "La seña corresponde al porcentaje indicado del total; el saldo se abona contra entrega." },
+      { id: uid(), titulo: "Finalización", cuerpo: "El proyecto se da por finalizado con la entrega exitosa dentro del plazo establecido." },
+      { id: uid(), titulo: "Modificaciones", cuerpo: "De solicitarse cambios sustanciales luego de aprobado el presupuesto, los valores podrían variar." }
+    ]
+  };
+}
+
+let state = defaultState();
+
+function isPlainObject(v) { return v && typeof v === "object" && !Array.isArray(v); }
+function mergeState(defaults, saved) {
+  const result = { ...defaults };
+  for (const key in saved) {
+    result[key] = isPlainObject(saved[key]) && isPlainObject(defaults[key])
+      ? { ...defaults[key], ...saved[key] }
+      : saved[key];
+  }
+  return result;
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = mergeState(defaultState(), JSON.parse(raw));
+  } catch (e) { /* ignore */ }
+}
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function moneySymbol() {
+  return state.estudio.moneda === "OTRA" ? (state.estudio.monedaOtra || "$") : (CUR_SYMBOLS[state.estudio.moneda] || "$");
+}
+function fmtMoney(n) {
+  const num = Number(n) || 0;
+  return moneySymbol() + " " + num.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtDate(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+function addDays(iso, days) {
+  const dt = new Date(iso + "T00:00:00");
+  dt.setDate(dt.getDate() + Number(days || 0));
+  return dt.toISOString().slice(0, 10);
+}
+
+// ---------- bindings: simple fields ----------
+function bindSimpleFields() {
+  const map = [
+    ["f-estudioNombre", () => state.estudio.nombre, v => state.estudio.nombre = v],
+    ["f-estudioRubro", () => state.estudio.rubro, v => state.estudio.rubro = v],
+    ["f-estudioTelefono", () => state.estudio.telefono, v => state.estudio.telefono = v],
+    ["f-estudioContacto", () => state.estudio.contacto, v => state.estudio.contacto = v],
+    ["f-estudioZona", () => state.estudio.zona, v => state.estudio.zona = v],
+    ["f-monedaOtra", () => state.estudio.monedaOtra, v => state.estudio.monedaOtra = v],
+    ["f-creditoAutoria", () => state.estudio.creditoAutoria, v => state.estudio.creditoAutoria = v],
+    ["f-clienteNombre", () => state.cliente.nombre, v => state.cliente.nombre = v],
+    ["f-clienteContacto", () => state.cliente.contacto, v => state.cliente.contacto = v],
+    ["f-fecha", () => state.fecha, v => state.fecha = v],
+    ["f-validezDias", () => state.validezDias, v => state.validezDias = Number(v) || 0],
+    ["f-senaPct", () => state.senaPct, v => state.senaPct = Number(v) || 0],
+    ["f-sTitulo", () => state.sesion.titulo, v => state.sesion.titulo = v],
+    ["f-sDescripcion", () => state.sesion.descripcion, v => state.sesion.descripcion = v],
+    ["f-sBullets", () => state.sesion.bullets.join("\n"), v => state.sesion.bullets = v.split("\n").map(s => s.trim()).filter(Boolean)],
+    ["f-sDescuento", () => state.sesion.descuentoPct, v => state.sesion.descuentoPct = Number(v) || 0],
+    ["f-sNotas", () => state.sesion.notas.join("\n"), v => state.sesion.notas = v.split("\n").map(s => s.trim()).filter(Boolean)],
+    ["f-cDescuento", () => state.cuadros.descuentoPct, v => state.cuadros.descuentoPct = Number(v) || 0],
+    ["f-cNotas", () => state.cuadros.notas.join("\n"), v => state.cuadros.notas = v.split("\n").map(s => s.trim()).filter(Boolean)],
+  ];
+  map.forEach(([id, getter, setter]) => {
+    const el = document.getElementById(id);
+    el.value = getter();
+    el.addEventListener("input", () => { setter(el.value); saveState(); renderPreview(); });
+  });
+
+  const monedaSel = document.getElementById("f-moneda");
+  monedaSel.value = state.estudio.moneda;
+  const otraWrap = document.getElementById("f-monedaOtraWrap");
+  otraWrap.style.display = state.estudio.moneda === "OTRA" ? "flex" : "none";
+  monedaSel.addEventListener("change", () => {
+    state.estudio.moneda = monedaSel.value;
+    otraWrap.style.display = monedaSel.value === "OTRA" ? "flex" : "none";
+    saveState(); renderPreview();
+  });
+
+  initLogoUpload();
+  renderLogoPreview();
+  initFotoConceptoUpload();
+  renderFotoConceptoPreview();
+}
+
+// ---------- image upload (file -> auto-fit data URL) ----------
+const LOGO_MAX_DIMENSION = 800; // px, longest side after downscale
+const PHOTO_MAX_DIMENSION = 1400; // content photos are shown larger, keep more detail
+const IMG_MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB raw upload guard
+
+function loadImageAsDataUrl(file, maxDim) {
+  maxDim = maxDim || LOGO_MAX_DIMENSION;
+  return new Promise((resolve, reject) => {
+    if (file.size > IMG_MAX_FILE_BYTES) {
+      reject(new Error("El archivo pesa demasiado (máx 8MB)."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (!width || !height) { reject(new Error("Imagen inválida.")); return; }
+        if (width > maxDim || height > maxDim) {
+          const scale = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        const keepPng = file.type === "image/png" || file.type === "image/svg+xml" || file.type === "image/webp";
+        resolve(canvas.toDataURL(keepPng ? "image/png" : "image/jpeg", 0.9));
+      };
+      img.onerror = () => reject(new Error("El archivo no es una imagen válida."));
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function showLogoError(msg) {
+  const el = document.getElementById("logoErrorMsg");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(showLogoError._t);
+  showLogoError._t = setTimeout(() => { el.style.display = "none"; }, 4000);
+}
+
+function renderLogoPreview() {
+  const el = document.getElementById("logoPreview");
+  el.innerHTML = state.estudio.logo
+    ? `<img src="${state.estudio.logo}" alt="logo">`
+    : `<span>Sin logo</span>`;
+}
+
+function initLogoUpload() {
+  const fileInput = document.getElementById("f-logoFile");
+  const removeBtn = document.getElementById("f-logoRemove");
+  fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      state.estudio.logo = await loadImageAsDataUrl(file, LOGO_MAX_DIMENSION);
+      saveState();
+      renderLogoPreview();
+      renderPreview();
+    } catch (err) {
+      showLogoError(err.message || "No se pudo cargar la imagen.");
+    }
+    fileInput.value = "";
+  });
+  removeBtn.addEventListener("click", () => {
+    state.estudio.logo = "";
+    saveState();
+    renderLogoPreview();
+    renderPreview();
+  });
+}
+
+function renderFotoConceptoPreview() {
+  const el = document.getElementById("fotoConceptoPreview");
+  el.innerHTML = state.sesion.fotoConcepto
+    ? `<img src="${state.sesion.fotoConcepto}" alt="foto concepto">`
+    : `<span>Sin foto</span>`;
+}
+
+function initFotoConceptoUpload() {
+  const fileInput = document.getElementById("f-fotoConceptoFile");
+  const removeBtn = document.getElementById("f-fotoConceptoRemove");
+  fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      state.sesion.fotoConcepto = await loadImageAsDataUrl(file, PHOTO_MAX_DIMENSION);
+      saveState();
+      renderFotoConceptoPreview();
+      renderPreview();
+    } catch (err) {
+      showLogoError(err.message || "No se pudo cargar la imagen.");
+    }
+    fileInput.value = "";
+  });
+  removeBtn.addEventListener("click", () => {
+    state.sesion.fotoConcepto = "";
+    saveState();
+    renderFotoConceptoPreview();
+    renderPreview();
+  });
+}
+
+// ---------- dynamic list renderers ----------
+function renderSesionItems() {
+  const wrap = document.getElementById("sesionItems");
+  wrap.innerHTML = "";
+  state.sesion.items.forEach(it => {
+    const row = document.createElement("div");
+    row.className = "item-row";
+    row.innerHTML = `
+      <div class="grid">
+        <input data-f="concepto" placeholder="Concepto" value="${escAttr(it.concepto)}">
+      </div>
+      <div class="grid">
+        <input data-f="cantidad" type="number" min="0" placeholder="Cantidad" value="${it.cantidad}">
+        <input data-f="precio" type="number" min="0" placeholder="Precio unitario" value="${it.precio}">
+      </div>
+      <div class="item-row-foot">
+        <span class="subtotal">${fmtMoney(it.cantidad * it.precio)}</span>
+        <button class="btn danger sm" data-act="del"><span>✕</span></button>
+      </div>`;
+    row.querySelector('[data-f="concepto"]').addEventListener("input", e => { it.concepto = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="cantidad"]').addEventListener("input", e => { it.cantidad = Number(e.target.value) || 0; saveState(); renderSesionItems(); renderPreview(); });
+    row.querySelector('[data-f="precio"]').addEventListener("input", e => { it.precio = Number(e.target.value) || 0; saveState(); renderSesionItems(); renderPreview(); });
+    row.querySelector('[data-act="del"]').addEventListener("click", () => { state.sesion.items = state.sesion.items.filter(x => x.id !== it.id); saveState(); renderSesionItems(); renderPreview(); });
+    wrap.appendChild(row);
+  });
+}
+
+const MATERIALES = ["Canvas", "Madera", "PVC / Foam", "Acrílico", "Papel Fine Art"];
+const MARCOS = ["Sin marco", "Marco flotante negro", "Marco flotante blanco", "Marco clásico", "Laminado mate", "Laminado brillante"];
+
+function renderCuadrosItems() {
+  const wrap = document.getElementById("cuadrosItems");
+  wrap.innerHTML = "";
+  state.cuadros.items.forEach(it => {
+    const row = document.createElement("div");
+    row.className = "item-row";
+    row.innerHTML = `
+      <div class="grid">
+        <input data-f="tamano" placeholder="Tamaño (ej: 30x40 cm)" value="${escAttr(it.tamano)}">
+        <select data-f="material">${MATERIALES.map(m => `<option ${m === it.material ? "selected" : ""}>${m}</option>`).join("")}</select>
+      </div>
+      <div class="grid">
+        <select data-f="marco">${MARCOS.map(m => `<option ${m === it.marco ? "selected" : ""}>${m}</option>`).join("")}</select>
+        <input data-f="cantidad" type="number" min="0" placeholder="Cantidad" value="${it.cantidad}">
+      </div>
+      <div class="grid">
+        <input data-f="precio" type="number" min="0" placeholder="Precio unitario" value="${it.precio}">
+      </div>
+      <div class="logo-upload" style="margin-bottom:8px;">
+        <div class="logo-preview" data-f="fotoPreview" style="width:44px;height:44px;">${it.foto ? `<img src="${it.foto}" alt="foto pieza">` : `<span>Sin foto</span>`}</div>
+        <div class="logo-upload-actions">
+          <label class="btn ghost sm file-btn"><span>📁 Foto de esta pieza</span><input type="file" data-f="fotoFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+          <button class="btn danger sm" data-act="fotoDel" type="button"><span>✕ Quitar foto</span></button>
+        </div>
+      </div>
+      <div class="item-row-foot">
+        <span class="subtotal">${fmtMoney(it.cantidad * it.precio)}</span>
+        <button class="btn danger sm" data-act="del"><span>✕</span></button>
+      </div>`;
+    row.querySelector('[data-f="tamano"]').addEventListener("input", e => { it.tamano = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="material"]').addEventListener("change", e => { it.material = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="marco"]').addEventListener("change", e => { it.marco = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="cantidad"]').addEventListener("input", e => { it.cantidad = Number(e.target.value) || 0; saveState(); renderCuadrosItems(); renderPreview(); });
+    row.querySelector('[data-f="precio"]').addEventListener("input", e => { it.precio = Number(e.target.value) || 0; saveState(); renderCuadrosItems(); renderPreview(); });
+    row.querySelector('[data-f="fotoFile"]').addEventListener("change", async e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        it.foto = await loadImageAsDataUrl(file, PHOTO_MAX_DIMENSION);
+        saveState(); renderCuadrosItems(); renderPreview();
+      } catch (err) {
+        showLogoError(err.message || "No se pudo cargar la imagen.");
+      }
+    });
+    row.querySelector('[data-act="fotoDel"]').addEventListener("click", () => { it.foto = ""; saveState(); renderCuadrosItems(); renderPreview(); });
+    row.querySelector('[data-act="del"]').addEventListener("click", () => { state.cuadros.items = state.cuadros.items.filter(x => x.id !== it.id); saveState(); renderCuadrosItems(); renderPreview(); });
+    wrap.appendChild(row);
+  });
+}
+
+function renderBlockList(containerId, list, onChange) {
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = "";
+  list.forEach(b => {
+    const row = document.createElement("div");
+    row.className = "block-row";
+    row.innerHTML = `
+      <input data-f="titulo" placeholder="Título" value="${escAttr(b.titulo)}">
+      <textarea data-f="cuerpo" placeholder="Texto">${escHtml(b.cuerpo)}</textarea>
+      <button class="btn danger sm" data-act="del"><span>✕ Quitar bloque</span></button>`;
+    row.querySelector('[data-f="titulo"]').addEventListener("input", e => { b.titulo = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-f="cuerpo"]').addEventListener("input", e => { b.cuerpo = e.target.value; saveState(); renderPreview(); });
+    row.querySelector('[data-act="del"]').addEventListener("click", () => { onChange(list.filter(x => x.id !== b.id)); });
+    wrap.appendChild(row);
+  });
+}
+
+function renderEntregablesForm() {
+  const list = state.entregables[state.mode];
+  renderBlockList("entregablesList", list, (newList) => { state.entregables[state.mode] = newList; saveState(); renderEntregablesForm(); renderPreview(); });
+}
+function renderFormaTrabajoForm() {
+  renderBlockList("formaTrabajoList", state.formaTrabajo, (newList) => { state.formaTrabajo = newList; saveState(); renderFormaTrabajoForm(); renderPreview(); });
+}
+
+function escAttr(s) { return String(s || "").replace(/"/g, "&quot;"); }
+function escHtml(s) { return String(s || "").replace(/</g, "&lt;"); }
+// "CABA · PBA" -> stacked mini-tag lines, echoing the Figma reference's "CABA 01 / PBA 02" tag.
+function zonaLines(s) { return String(s || "").split("·").map(x => escHtml(x.trim())).filter(Boolean).join("<br>"); }
+
+// ---------- mode toggle ----------
+document.getElementById("modeToggle").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-mode]");
+  if (!btn) return;
+  state.mode = btn.dataset.mode;
+  document.querySelectorAll("#modeToggle button").forEach(b => b.classList.toggle("active", b === btn));
+  document.getElementById("form-sesion").classList.toggle("hidden", state.mode !== "sesion");
+  document.getElementById("form-cuadros").classList.toggle("hidden", state.mode !== "cuadros");
+  saveState();
+  renderEntregablesForm();
+  renderPreview();
+});
+
+// ---------- add buttons ----------
+document.getElementById("addSesionItem").addEventListener("click", () => {
+  state.sesion.items.push({ id: uid(), concepto: "", cantidad: 1, precio: 0 });
+  saveState(); renderSesionItems(); renderPreview();
+});
+document.getElementById("addCuadroItem").addEventListener("click", () => {
+  state.cuadros.items.push({ id: uid(), tamano: "20x30 cm", material: MATERIALES[0], marco: MARCOS[0], cantidad: 1, precio: 0, foto: "" });
+  saveState(); renderCuadrosItems(); renderPreview();
+});
+document.getElementById("addEntregable").addEventListener("click", () => {
+  state.entregables[state.mode].push({ id: uid(), titulo: "", cuerpo: "" });
+  saveState(); renderEntregablesForm(); renderPreview();
+});
+document.getElementById("addFormaTrabajo").addEventListener("click", () => {
+  state.formaTrabajo.push({ id: uid(), titulo: "", cuerpo: "" });
+  saveState(); renderFormaTrabajoForm(); renderPreview();
+});
+
+// ---------- totals ----------
+function computeTotales() {
+  if (state.mode === "sesion") {
+    const subtotal = state.sesion.items.reduce((s, it) => s + it.cantidad * it.precio, 0);
+    const descuento = subtotal * (state.sesion.descuentoPct / 100);
+    return { subtotal, descuento, total: subtotal - descuento, pct: state.sesion.descuentoPct };
+  } else {
+    const subtotal = state.cuadros.items.reduce((s, it) => s + it.cantidad * it.precio, 0);
+    const descuento = subtotal * (state.cuadros.descuentoPct / 100);
+    return { subtotal, descuento, total: subtotal - descuento, pct: state.cuadros.descuentoPct };
+  }
+}
+
+// ---------- preview render ----------
+function renderPreview() {
+  const el = document.getElementById("pvInner");
+  const t = computeTotales();
+  const validoHasta = addDays(state.fecha, state.validezDias);
+
+  const headLogo = state.estudio.logo
+    ? `<img class="pv-brand-logo" src="${escAttr(state.estudio.logo)}" alt="logo">`
+    : "";
+
+  const serviceCard = state.mode === "sesion" ? `
+    <div class="pv-card">
+      <h3>Servicio</h3>
+      <p class="pv-service-title">${escHtml(state.sesion.titulo) || "Servicio"}</p>
+      <p class="pv-service-desc">${escHtml(state.sesion.descripcion)}</p>
+      ${state.sesion.fotoConcepto ? `<div class="pv-concept-photo" style="background-image:url('${escAttr(state.sesion.fotoConcepto)}')">
+        ${state.estudio.contacto ? `<div class="pv-photo-scrim"><span class="handle">${escHtml(state.estudio.contacto)}</span></div>` : ""}
+      </div>` : ""}
+      <div class="pv-bullets">${state.sesion.bullets.map(b => `<span>${escHtml(b)}</span>`).join("")}</div>
+      <table class="pv-table">
+        <thead><tr><th>Concepto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>${state.sesion.items.map(it => `<tr><td>${escHtml(it.concepto)}</td><td class="num">${it.cantidad}</td><td class="num">${fmtMoney(it.precio)}</td><td class="num">${fmtMoney(it.cantidad * it.precio)}</td></tr>`).join("")}</tbody>
+      </table>
+      ${totalsBlock(t)}
+      ${notesBlock(state.sesion.notas)}
+    </div>` : `
+    <div class="pv-card">
+      <h3>Cuadros fotográficos</h3>
+      <table class="pv-table">
+        <thead><tr><th>Foto</th><th>Tamaño</th><th>Material</th><th>Marco</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>${state.cuadros.items.map(it => `<tr><td class="thumb">${it.foto ? `<div class="thumb-img" style="background-image:url('${escAttr(it.foto)}')"></div>` : `<span>—</span>`}</td><td>${escHtml(it.tamano)}</td><td>${escHtml(it.material)}</td><td>${escHtml(it.marco)}</td><td class="num">${it.cantidad}</td><td class="num">${fmtMoney(it.precio)}</td><td class="num">${fmtMoney(it.cantidad * it.precio)}</td></tr>`).join("")}</tbody>
+      </table>
+      ${totalsBlock(t)}
+      ${notesBlock(state.cuadros.notas)}
+    </div>`;
+
+  const entregablesList = state.entregables[state.mode];
+  const entregablesCard = `
+    <div class="pv-card">
+      <h3>Entregables</h3>
+      <div class="pv-2col">
+        ${entregablesList.map(b => `<div class="pv-sub"><p class="st">${escHtml(b.titulo)}</p><p class="sb">${escHtml(b.cuerpo)}</p></div>`).join("")}
+      </div>
+    </div>`;
+
+  const formaTrabajoCard = `
+    <div class="pv-card">
+      <h3>Forma de trabajo</h3>
+      <div class="pv-2col">
+        ${state.formaTrabajo.map(b => `<div class="pv-sub"><p class="st">${escHtml(b.titulo)}</p><p class="sb">${escHtml(b.cuerpo)}</p></div>`).join("")}
+      </div>
+    </div>`;
+
+  el.innerHTML = `
+    ${coverCard(t, validoHasta)}
+    <div class="pv-head">
+      <div>
+        ${headLogo}
+        <p class="pv-brand-name">${escHtml(state.estudio.nombre) || "Tu Estudio"}</p>
+        <p class="pv-brand-tag">${escHtml(state.estudio.rubro) || "Fotografía"}</p>
+      </div>
+      <div>
+        ${state.estudio.zona ? `<div class="pv-zone-tag">${zonaLines(state.estudio.zona)}</div>` : ""}
+        <div class="pv-contact">
+          <div><span class="arrow">→</span>${escHtml(state.estudio.telefono)}</div>
+          <div>${escHtml(state.estudio.contacto)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="pv-meta">
+      <div class="pv-pill"><div class="k">Cliente</div><div class="v">${escHtml(state.cliente.nombre) || "—"}</div></div>
+      <div class="pv-pill"><div class="k">Contacto</div><div class="v">${escHtml(state.cliente.contacto) || "—"}</div></div>
+      <div class="pv-pill"><div class="k">Fecha</div><div class="v">${fmtDate(state.fecha)}</div></div>
+      <div class="pv-pill"><div class="k">Válido hasta</div><div class="v">${fmtDate(validoHasta)}</div></div>
+    </div>
+    ${serviceCard}
+    ${entregablesCard}
+    ${formaTrabajoCard}
+    <p class="pv-footer">Seña del ${state.senaPct}% para confirmar · Presupuesto sujeto a modificación ante cambios de alcance</p>
+  `;
+}
+
+function totalsBlock(t) {
+  return `<div class="pv-totals">
+    <div class="line"><span>Subtotal</span><span>${fmtMoney(t.subtotal)}</span></div>
+    ${t.pct > 0 ? `<div class="line"><span>Bonificación (${t.pct}%)</span><span>-${fmtMoney(t.descuento)}</span></div>` : ""}
+    <div class="line total"><span>Total</span><span>${fmtMoney(t.total)}</span></div>
+  </div>`;
+}
+function notesBlock(notas) {
+  if (!notas || !notas.length) return "";
+  return `<div class="pv-notes">${notas.map(n => `<p>${escHtml(n)}</p>`).join("")}</div>`;
+}
+
+// Print-only cover page ("carta de presentación"): title, ultra-brief summary and
+// the reference photo. Rendered always (cheap) but only shown via @media print.
+function coverCard(t, validoHasta) {
+  const photo = featuredPhotoFor(state.mode);
+  const title = state.mode === "sesion"
+    ? (state.sesion.titulo || "Sesión fotográfica")
+    : "Cuadros fotográficos";
+  const summary = state.mode === "sesion"
+    ? truncate(state.sesion.descripcion, 220)
+    : `${state.cuadros.items.reduce((s, it) => s + it.cantidad, 0)} pieza(s) · ${[...new Set(state.cuadros.items.map(it => it.material).filter(Boolean))].join(", ")}`;
+  const chips = shareSummaryChips();
+  const pagoBlock = findFormaTrabajoBlock(/pago|se[ñn]a/i);
+  const inicioBlock = findFormaTrabajoBlock(/inicio/i);
+  const condLine = truncate((pagoBlock ? pagoBlock.cuerpo : "") || (inicioBlock ? inicioBlock.cuerpo : ""), 200);
+  const entregable = state.entregables[state.mode][0];
+  const entregLine = entregable ? truncate(`${entregable.titulo}: ${entregable.cuerpo}`, 200) : "";
+  const creditoAutoria = state.estudio.creditoAutoria || "@rawspeed.ph / Agustín Meza";
+
+  return `
+    <section class="pv-cover">
+      <span class="pv-cover-mark tl">+</span>
+      <span class="pv-cover-mark tr">+</span>
+      <span class="pv-cover-mark bl">+</span>
+      <span class="pv-cover-mark br">+</span>
+      <div>
+        ${state.estudio.logo ? `<img class="pv-cover-logo" src="${escAttr(state.estudio.logo)}" alt="logo">` : ""}
+        <p class="pv-cover-brand">${escHtml(state.estudio.nombre) || "Tu Estudio"}</p>
+        <p class="pv-cover-tag">${escHtml(state.estudio.rubro) || "Fotografía"}</p>
+      </div>
+      <h1 class="pv-cover-title">${escHtml(title)}</h1>
+      <p class="pv-cover-summary">${escHtml(summary)}</p>
+      ${chips.length ? `<div class="pv-cover-chips">${chips.map(c => `<span>${escHtml(c)}</span>`).join("")}</div>` : ""}
+      ${photo.src ? `<div class="pv-cover-photo" style="background-image:url('${escAttr(photo.src)}')">
+        ${state.estudio.contacto || photo.caption ? `<div class="pv-photo-scrim">
+          <span class="handle">${escHtml(state.estudio.contacto)}</span>
+          <span class="caption">${escHtml(photo.caption)}</span>
+        </div>` : ""}
+      </div>` : ""}
+      <div class="pv-cover-stats">
+        <div><span class="k">Cliente</span><span class="v">${escHtml(state.cliente.nombre) || "—"}</span></div>
+        <div><span class="k">Seña</span><span class="v">${state.senaPct}%</span></div>
+        <div><span class="k">Válido hasta</span><span class="v">${fmtDate(validoHasta)}</span></div>
+      </div>
+      <div class="pv-cover-total"><span class="k">Total</span><span class="v">${fmtMoney(t.total)}</span></div>
+      ${condLine ? `<p class="pv-cover-line">${escHtml(condLine)}</p>` : ""}
+      ${entregLine ? `<p class="pv-cover-line">${escHtml(entregLine)}</p>` : ""}
+      <p class="pv-cover-credit">© Fotografías: ${escHtml(creditoAutoria)} — autor creativo y productor. Prohibida su reproducción o difusión sin esta mención.</p>
+      <p class="pv-cover-footer">${escHtml(state.estudio.telefono)}${state.estudio.telefono && state.estudio.contacto ? " · " : ""}${escHtml(state.estudio.contacto)} — Presupuesto sujeto a modificación</p>
+    </section>`;
+}
+
+// ---------- reset ----------
+let confirmCb = null;
+function askConfirm(title, msg, cb) {
+  document.getElementById("confirmTitle").textContent = title;
+  document.getElementById("confirmMsg").textContent = msg;
+  confirmCb = cb;
+  document.getElementById("confirmModal").classList.add("open");
+}
+document.getElementById("confirmCancel").addEventListener("click", () => { confirmCb = null; document.getElementById("confirmModal").classList.remove("open"); });
+document.getElementById("confirmOk").addEventListener("click", () => {
+  const cb = confirmCb; confirmCb = null;
+  document.getElementById("confirmModal").classList.remove("open");
+  if (cb) cb();
+});
+document.getElementById("resetAll").addEventListener("click", () => {
+  askConfirm("Reiniciar todo", "Se van a borrar todos los datos cargados. ¿Confirmás?", () => {
+    state = defaultState();
+    saveState();
+    initForm();
+  });
+});
+
+// ---------- PDF export ----------
+document.getElementById("exportPdf").addEventListener("click", async () => {
+  const btn = document.getElementById("exportPdf");
+  const btnLabel = btn.querySelector("span");
+  const prevLabel = btnLabel.textContent;
+  btn.disabled = true;
+  btnLabel.textContent = "⏳ Generando PDF...";
+  try {
+    await exportPdfDirect();
+  } catch (err) {
+    console.error(err);
+    showLogoError("No se pudo generar el PDF: " + (err && err.message ? err.message : "error desconocido") + ". Probá de nuevo.");
+  } finally {
+    btn.disabled = false;
+    btnLabel.textContent = prevLabel;
+  }
+});
+
+// ---------- Image export ----------
+const imgModal = document.getElementById("imgModal");
+document.getElementById("openImageExport").addEventListener("click", () => imgModal.classList.add("open"));
+document.getElementById("imgModalCancel").addEventListener("click", () => imgModal.classList.remove("open"));
+document.getElementById("imgModalGo").addEventListener("click", async () => {
+  const size = document.querySelector('input[name="imgSize"]:checked').value;
+  imgModal.classList.remove("open");
+  const btn = document.getElementById("openImageExport");
+  const btnLabel = btn.querySelector("span");
+  const prevLabel = btnLabel.textContent;
+  btn.disabled = true;
+  btnLabel.textContent = "⏳ Generando imagen...";
+  try {
+    if (size === "full") await exportFullImage();
+    else await exportShareImage(size);
+  } catch (err) {
+    console.error(err);
+    showLogoError("No se pudo generar la imagen: " + (err && err.message ? err.message : "error desconocido") + ". Probá de nuevo o con una imagen más liviana.");
+  } finally {
+    btn.disabled = false;
+    btnLabel.textContent = prevLabel;
+  }
+});
+
+// Browsers cap total canvas pixels (mobile Safari ~16M px²); keep scale safe for tall documents.
+function safeScaleFor(widthPx, heightPx, desiredScale) {
+  const MAX_CANVAS_AREA = 15000000;
+  let scale = desiredScale;
+  while (scale > 1 && widthPx * heightPx * scale * scale > MAX_CANVAS_AREA) scale -= 0.25;
+  return Math.max(1, scale);
+}
+
+function downloadCanvasAsPng(canvas, filename) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (!blob) { reject(new Error("El navegador no pudo exportar la imagen (lienzo demasiado grande).")); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      resolve();
+    }, "image/png");
+  });
+}
+
+// Full budget (all sections) as a single tall PNG, at the preview's actual rendered content.
+async function exportFullImage() {
+  const node = document.getElementById("previewArea");
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+  const scale = safeScaleFor(node.scrollWidth, node.scrollHeight, 2);
+  const canvas = await html2canvas(node, {
+    scale, backgroundColor: null, useCORS: true,
+    windowWidth: node.scrollWidth, windowHeight: node.scrollHeight
+  });
+  await downloadCanvasAsPng(canvas, `presupuesto-${(state.estudio.nombre || "estudio").replace(/\s+/g, "_")}-completo.png`);
+}
+
+// ---------- Direct PDF export (no OS print dialog) ----------
+// window.print() is unreliable on iOS/iPadOS: home-screen (standalone) web apps have
+// no print API at all, and Mobile Safari's print pipeline is inconsistent with CSS
+// backgrounds/colors even in-tab. Instead we render the same content that @media print
+// uses (cover page + direct-data body) onto an offscreen clone, capture it once with
+// html2canvas, slice that single image at block boundaries (never mid-card, mid-row,
+// etc. — same "no cortar secciones" guarantee as native print) and assemble a real
+// multi-page PDF file with jsPDF, then trigger a direct file download.
+const PDF_PAGE_W_PT = 612, PDF_PAGE_H_PT = 792; // US Letter
+const PDF_MARGIN_PT = 34; // ~12mm, matches @page margin
+const PDF_CONTENT_W_PT = PDF_PAGE_W_PT - PDF_MARGIN_PT * 2;
+const PDF_CONTENT_H_PT = PDF_PAGE_H_PT - PDF_MARGIN_PT * 2;
+const PT_PER_PX = 0.75; // 72pt / 96dpi
+const PDF_CONTENT_W_PX = Math.round(PDF_CONTENT_W_PT / PT_PER_PX);
+const PDF_CONTENT_H_PX = Math.round(PDF_CONTENT_H_PT / PT_PER_PX);
+
+async function exportPdfDirect() {
+  if (!window.jspdf) throw new Error("No se pudo cargar el generador de PDF.");
+  const source = document.getElementById("previewArea");
+  const host = document.getElementById("shareCardHost");
+
+  document.documentElement.style.setProperty("--pdf-page-h", PDF_CONTENT_H_PX + "px");
+  document.documentElement.setAttribute("data-pdf-capture", "1");
+
+  const clone = source.cloneNode(true);
+  clone.style.position = "static";
+  clone.style.width = PDF_CONTENT_W_PX + "px";
+  clone.style.height = "auto";
+  clone.style.maxHeight = "none";
+  clone.style.boxShadow = "none";
+  clone.style.borderRadius = "0";
+  clone.style.overflow = "visible";
+  const cloneInner = clone.querySelector(".pv-inner");
+  if (cloneInner) cloneInner.style.overflow = "visible";
+  host.innerHTML = "";
+  host.appendChild(clone);
+
+  try {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const containerTop = clone.getBoundingClientRect().top;
+    const blocks = Array.from(cloneInner.children)
+      .map(el => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top - containerTop, bottom: r.bottom - containerTop };
+      })
+      .filter(b => b.bottom > b.top);
+    if (!blocks.length) throw new Error("No hay contenido para exportar.");
+
+    const scale = safeScaleFor(clone.scrollWidth, clone.scrollHeight, 2);
+    const canvas = await html2canvas(clone, {
+      scale, backgroundColor: "#ffffff", useCORS: true,
+      windowWidth: clone.scrollWidth, windowHeight: clone.scrollHeight
+    });
+
+    // Page 1 is always the cover alone; the rest pack greedily, never splitting a block.
+    const pages = [[blocks[0]]];
+    let cur = [];
+    for (let i = 1; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (!cur.length) { cur.push(b); continue; }
+      if (b.bottom - cur[0].top > PDF_CONTENT_H_PX) { pages.push(cur); cur = [b]; }
+      else cur.push(b);
+    }
+    if (cur.length) pages.push(cur);
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    pages.forEach((group, i) => {
+      const top = group[0].top, bottom = group[group.length - 1].bottom;
+      const sy = Math.round(top * scale), sh = Math.max(1, Math.round((bottom - top) * scale));
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sh;
+      pageCanvas.getContext("2d").drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh);
+      const imgHPt = (bottom - top) * PT_PER_PX;
+      if (i > 0) doc.addPage();
+      // JPEG keeps file size reasonable for email/WhatsApp; the gradient backgrounds
+      // compress far worse as lossless PNG and the quality loss is imperceptible here.
+      doc.addImage(pageCanvas.toDataURL("image/jpeg", 0.9), "JPEG", PDF_MARGIN_PT, PDF_MARGIN_PT, PDF_CONTENT_W_PT, imgHPt);
+    });
+
+    doc.save(`presupuesto-${(state.estudio.nombre || "estudio").replace(/\s+/g, "_")}.pdf`);
+  } finally {
+    host.innerHTML = "";
+    document.documentElement.removeAttribute("data-pdf-capture");
+  }
+}
+
+function shareSummaryChips() {
+  if (state.mode === "sesion") return state.sesion.bullets.slice(0, 4);
+  return state.cuadros.items.slice(0, 4).map(it => `${it.tamano} × ${it.cantidad}`);
+}
+
+function findFormaTrabajoBlock(re) {
+  return state.formaTrabajo.find(b => re.test(b.titulo || ""));
+}
+
+function truncate(s, max) {
+  s = String(s || "").trim();
+  return s.length > max ? s.slice(0, max - 1).trim() + "…" : s;
+}
+
+function featuredPhotoFor(mode) {
+  if (mode === "sesion") return { src: state.sesion.fotoConcepto, caption: "" };
+  const it = state.cuadros.items.find(x => x.foto);
+  return { src: it ? it.foto : "", caption: it ? `${it.tamano}${it.material ? " · " + it.material : ""}` : "" };
+}
+
+const SHARE_THEMES = {
+  calido: {
+    text: "#0a0d12",
+    bg: `radial-gradient(ellipse 1200px 900px at 12% 6%, #ffe3bb 0%, transparent 60%),
+      radial-gradient(ellipse 1200px 1200px at 90% 100%, #e98c6c 0%, transparent 60%),
+      radial-gradient(ellipse 900px 900px at 70% 30%, #f4b79a 0%, transparent 65%),
+      linear-gradient(135deg, #fff3de 0%, #f0a888 100%)`,
+    pillBg: "rgba(255,255,255,0.4)",
+    chipBg: "rgba(10,13,18,0.08)",
+    totalBg: "rgba(255,255,255,0.35)",
+    totalBorder: "rgba(255,255,255,0.6)",
+    line: "rgba(10,13,18,0.25)",
+    photoBorder: "rgba(255,255,255,0.55)"
+  },
+  oscuro: {
+    text: "#f2ede4",
+    bg: `radial-gradient(ellipse 1200px 900px at 15% 10%, rgba(255,255,255,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse 1300px 1300px at 88% 96%, rgba(120,55,25,0.55) 0%, transparent 65%),
+      radial-gradient(ellipse 900px 900px at 65% 25%, rgba(70,30,15,0.5) 0%, transparent 65%),
+      linear-gradient(160deg, #232019 0%, #080705 100%)`,
+    pillBg: "rgba(255,255,255,0.08)",
+    chipBg: "rgba(255,255,255,0.1)",
+    totalBg: "rgba(255,255,255,0.06)",
+    totalBorder: "rgba(255,255,255,0.16)",
+    line: "rgba(242,237,228,0.22)",
+    photoBorder: "rgba(255,255,255,0.18)"
+  },
+  intenso: {
+    text: "#f5efe6",
+    bg: `radial-gradient(circle 640px at 88% 92%, transparent 54%, rgba(233,115,24,0.4) 58%, transparent 64%),
+      radial-gradient(circle 460px at 88% 92%, rgba(255,205,132,0.5) 0%, rgba(180,41,8,0.55) 45%, transparent 72%),
+      radial-gradient(ellipse 700px 550px at 8% 6%, rgba(233,115,24,0.16) 0%, transparent 60%),
+      linear-gradient(160deg, #171310 0%, #050403 100%)`,
+    pillBg: "rgba(255,255,255,0.08)",
+    chipBg: "rgba(255,255,255,0.1)",
+    totalBg: "rgba(255,255,255,0.06)",
+    totalBorder: "rgba(255,255,255,0.16)",
+    line: "rgba(245,239,230,0.22)",
+    photoBorder: "rgba(255,255,255,0.18)"
+  }
+};
+
+async function exportShareImage(size) {
+  const dims = size === "story" ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
+  const th = SHARE_THEMES[state.previewTheme] || SHARE_THEMES.calido;
+  const t = computeTotales();
+  const validoHasta = addDays(state.fecha, state.validezDias);
+  const summaryLine = state.mode === "sesion"
+    ? (state.sesion.titulo || "Servicio fotográfico")
+    : `Cuadros fotográficos × ${state.cuadros.items.reduce((s, it) => s + it.cantidad, 0)} piezas`;
+  const chips = shareSummaryChips();
+  const pagoBlock = findFormaTrabajoBlock(/pago|se[ñn]a/i);
+  const inicioBlock = findFormaTrabajoBlock(/inicio/i);
+  const condLine = truncate(
+    (pagoBlock ? pagoBlock.cuerpo : "") || (inicioBlock ? inicioBlock.cuerpo : ""),
+    size === "story" ? 150 : 105
+  );
+  const entregable = state.entregables[state.mode][0];
+  const entregLine = entregable ? truncate(`${entregable.titulo}: ${entregable.cuerpo}`, size === "story" ? 150 : 105) : "";
+  const creditoAutoria = state.estudio.creditoAutoria || "@rawspeed.ph / Agustín Meza";
+  const photo = featuredPhotoFor(state.mode);
+
+  const pad = dims.w * 0.07;
+  const photoMarginY = dims.w * 0.03;
+
+  const headerHtml = `
+    <div id="scHeader" style="flex:0 0 auto;">
+      ${state.estudio.logo ? `<img src="${escAttr(state.estudio.logo)}" style="display:block;max-height:${dims.w * 0.14}px;max-width:${dims.w * 0.55}px;object-fit:contain;margin-bottom:14px;">` : ""}
+      <div style="font-weight:900;font-size:${dims.w * 0.062}px;text-transform:uppercase;letter-spacing:-0.03em;line-height:1;">${escHtml(state.estudio.nombre) || "Tu Estudio"}</div>
+      <div style="font-weight:500;font-size:${dims.w * 0.026}px;text-transform:uppercase;letter-spacing:0.02em;margin-top:8px;">${escHtml(state.estudio.rubro) || "Fotografía"}</div>
+    </div>`;
+
+  const bottomHtml = `
+    <div id="scBottom" style="flex:0 0 auto;">
+      <div style="font-size:${dims.w * 0.022}px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;opacity:0.75;margin-bottom:6px;">Presupuesto</div>
+      <div style="font-weight:800;font-size:${dims.w * 0.038}px;margin-bottom:${dims.w * 0.016}px;max-width:92%;">${escHtml(summaryLine)}</div>
+      ${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:${dims.w * 0.012}px;margin-bottom:${dims.w * 0.024}px;">${chips.map(c => `<span style="font-size:${dims.w * 0.018}px;font-weight:600;background:${th.chipBg};border-radius:999px;padding:${dims.w * 0.008}px ${dims.w * 0.016}px;">${escHtml(c)}</span>`).join("")}</div>` : ""}
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:${dims.w * 0.012}px;margin-bottom:${dims.w * 0.02}px;">
+        <div style="background:${th.pillBg};border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+          <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Cliente</div>
+          <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${escHtml(state.cliente.nombre) || "—"}</div>
+        </div>
+        <div style="background:${th.pillBg};border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+          <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Seña</div>
+          <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${state.senaPct}%</div>
+        </div>
+        <div style="background:${th.pillBg};border-radius:${dims.w * 0.012}px;padding:${dims.w * 0.02}px;">
+          <div style="font-size:${dims.w * 0.014}px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.7;">Válido hasta</div>
+          <div style="font-size:${dims.w * 0.019}px;font-weight:700;margin-top:2px;">${fmtDate(validoHasta)}</div>
+        </div>
+      </div>
+
+      <div style="background:${th.totalBg};border:1px solid ${th.totalBorder};border-radius:18px;padding:${dims.w * 0.04}px;margin-bottom:${dims.w * 0.016}px;">
+        <div style="font-size:${dims.w * 0.02}px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;opacity:0.75;">Total</div>
+        <div style="font-weight:900;font-size:${dims.w * 0.07}px;letter-spacing:-0.02em;">${fmtMoney(t.total)}</div>
+      </div>
+      ${condLine ? `<div style="font-size:${dims.w * 0.016}px;line-height:1.45;opacity:0.85;margin-bottom:${dims.w * 0.008}px;max-width:98%;">${escHtml(condLine)}</div>` : ""}
+      ${entregLine ? `<div style="font-size:${dims.w * 0.016}px;line-height:1.45;opacity:0.85;margin-bottom:${dims.w * 0.014}px;max-width:98%;">${escHtml(entregLine)}</div>` : ""}
+      <div style="font-size:${dims.w * 0.0145}px;line-height:1.4;opacity:0.7;font-style:italic;margin-bottom:${dims.w * 0.014}px;max-width:98%;">
+        © Fotografías: ${escHtml(creditoAutoria)} — autor creativo y productor. Prohibida su reproducción o difusión sin esta mención.
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:${dims.w * 0.019}px;font-weight:600;text-transform:uppercase;border-top:1px solid ${th.line};padding-top:${dims.w * 0.014}px;">
+        <span>Presupuesto sujeto a modificación</span>
+        <span>${escHtml(state.estudio.telefono)}${state.estudio.telefono && state.estudio.contacto ? " · " : ""}${escHtml(state.estudio.contacto)}</span>
+      </div>
+    </div>`;
+
+  function cardShell(innerHtml) {
+    const markCss = `position:absolute;font-weight:300;opacity:0.3;line-height:1;font-size:${dims.w * 0.02}px;pointer-events:none;`;
+    return `
+      <div id="shareCard" style="width:${dims.w}px;height:${dims.h}px;position:relative;overflow:hidden;
+        font-family:'Archivo',sans-serif;color:${th.text};
+        background: ${th.bg};">
+        <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;padding:${pad}px;box-sizing:border-box;">
+          <span style="${markCss}top:0;left:0;">+</span>
+          <span style="${markCss}top:0;right:0;">+</span>
+          <span style="${markCss}bottom:0;left:0;">+</span>
+          <span style="${markCss}bottom:0;right:0;">+</span>
+          ${innerHtml}
+        </div>
+      </div>`;
+  }
+
+  const host = document.getElementById("shareCardHost");
+
+  // Pass 1: render header + bottom only, to measure their real content height
+  // (flexbox distribution inside html2canvas's clone isn't reliable enough to
+  // size the photo box with flex:1, so we compute its exact pixel height here).
+  host.innerHTML = cardShell(headerHtml + bottomHtml);
+  const headerH = document.getElementById("scHeader").getBoundingClientRect().height;
+  const bottomH = document.getElementById("scBottom").getBoundingClientRect().height;
+  const available = (dims.h - pad * 2) - headerH - bottomH - (photo.src ? photoMarginY * 2 : 0);
+  const photoHeightPx = photo.src ? Math.max(dims.w * 0.16, available) : 0;
+
+  const photoHtml = photo.src ? `
+    <div style="height:${photoHeightPx}px;margin:${photoMarginY}px 0;border-radius:22px;overflow:hidden;position:relative;flex:0 0 auto;
+      background-image:url('${photo.src}');background-size:cover;background-position:center;border:1px solid ${th.photoBorder};">
+      ${photo.caption ? `
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:${dims.w * 0.03}px;
+          background:linear-gradient(to top, rgba(10,13,18,0.68), transparent);
+          color:#fff;font-weight:700;font-size:${dims.w * 0.02}px;text-transform:uppercase;letter-spacing:0.03em;">
+          ${escHtml(photo.caption)}
+        </div>` : ""}
+    </div>` : "";
+
+  // Pass 2: final render with the photo box at its computed height
+  host.innerHTML = cardShell(headerHtml + photoHtml + bottomHtml);
+
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+  const node = document.getElementById("shareCard");
+  const canvas = await html2canvas(node, {
+    width: dims.w, height: dims.h, windowWidth: dims.w, windowHeight: dims.h,
+    x: 0, y: 0, scrollX: 0, scrollY: 0,
+    scale: safeScaleFor(dims.w, dims.h, 2), backgroundColor: null, useCORS: true
+  });
+  try {
+    await downloadCanvasAsPng(canvas, `presupuesto-${(state.estudio.nombre || "estudio").replace(/\s+/g, "_")}-${size}.png`);
+  } finally {
+    host.innerHTML = "";
+  }
+}
+
+// ---------- app theme (UI chrome light/dark, device preference, not budget data) ----------
+const APP_THEME_KEY = "presupuestos_app_theme_v1";
+function applyAppTheme(theme) {
+  document.documentElement.dataset.appTheme = theme;
+  const btn = document.getElementById("appThemeToggle");
+  if (btn) btn.querySelector("span").textContent = theme === "dark" ? "☀️ Modo claro" : "🌙 Modo oscuro";
+}
+function initAppTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(APP_THEME_KEY); } catch (e) {}
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyAppTheme(saved || (prefersDark ? "dark" : "light"));
+  document.getElementById("appThemeToggle").addEventListener("click", () => {
+    const next = document.documentElement.dataset.appTheme === "dark" ? "light" : "dark";
+    applyAppTheme(next);
+    try { localStorage.setItem(APP_THEME_KEY, next); } catch (e) {}
+  });
+}
+
+// ---------- document/export theme (Cálido / Oscuro, saved with the budget) ----------
+function applyDocTheme() {
+  document.getElementById("previewArea").dataset.theme = state.previewTheme;
+  document.querySelectorAll("#docThemeToggle button").forEach(b => b.classList.toggle("active", b.dataset.theme === state.previewTheme));
+}
+document.getElementById("docThemeToggle").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-theme]");
+  if (!btn) return;
+  state.previewTheme = btn.dataset.theme;
+  saveState();
+  applyDocTheme();
+});
+
+// ---------- init ----------
+function initForm() {
+  bindSimpleFields();
+  document.querySelectorAll("#modeToggle button").forEach(b => b.classList.toggle("active", b.dataset.mode === state.mode));
+  document.getElementById("form-sesion").classList.toggle("hidden", state.mode !== "sesion");
+  document.getElementById("form-cuadros").classList.toggle("hidden", state.mode !== "cuadros");
+  renderSesionItems();
+  renderCuadrosItems();
+  renderEntregablesForm();
+  renderFormaTrabajoForm();
+  applyDocTheme();
+  renderPreview();
+}
+
+initAppTheme();
+loadState();
+initForm();
+</script>
+</body>
+</html>
