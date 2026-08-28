@@ -1,0 +1,754 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model cost_centers {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plant_id             String                 @db.Uuid
+  code                 String                 @db.VarChar(20)
+  name                 String                 @db.VarChar(150)
+  plants               plants                 @relation(fields: [plant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipment            equipment[]
+  functional_locations functional_locations[]
+  users                users[]
+  work_centers         work_centers[]
+  work_orders          work_orders[]
+
+  @@unique([plant_id, code])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model equipment {
+  id                             String                           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plant_id                       String                           @db.Uuid
+  code                           String                           @db.VarChar(40)
+  description                    String                           @db.VarChar(255)
+  functional_location_id         String?                          @db.Uuid
+  parent_equipment_id            String?                          @db.Uuid
+  equipment_category             String?                          @db.VarChar(30)
+  manufacturer                   String?                          @db.VarChar(100)
+  model                          String?                          @db.VarChar(100)
+  serial_number                  String?                          @db.VarChar(100)
+  manufacture_date               DateTime?                        @db.Date
+  acquisition_date               DateTime?                        @db.Date
+  acquisition_value              Decimal?                         @db.Decimal(14, 2)
+  warranty_start_date            DateTime?                        @db.Date
+  warranty_end_date              DateTime?                        @db.Date
+  cost_center_id                 String?                          @db.Uuid
+  status                         equipment_status                 @default(ACTIVE)
+  criticality                    Int?                             @db.SmallInt
+  created_at                     DateTime                         @default(now()) @db.Timestamptz(6)
+  cost_centers                   cost_centers?                    @relation(fields: [cost_center_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  functional_locations           functional_locations?            @relation(fields: [functional_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipment                      equipment?                       @relation("equipmentToequipment", fields: [parent_equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_equipment                equipment[]                      @relation("equipmentToequipment")
+  plants                         plants                           @relation(fields: [plant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipment_bom_headers          equipment_bom_headers[]
+  equipment_installation_history equipment_installation_history[]
+  maintenance_items              maintenance_items[]
+  measuring_points               measuring_points[]
+  notifications                  notifications[]
+  task_lists                     task_lists[]
+  work_orders                    work_orders[]
+
+  @@unique([plant_id, code])
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "idx_equipment_description_trgm", type: Gin)
+  @@index([functional_location_id], map: "idx_equipment_fl")
+  @@index([status], map: "idx_equipment_status")
+}
+
+model equipment_bom_headers {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id        String                @db.Uuid
+  bom_usage           String                @default("MAINTENANCE") @db.VarChar(30)
+  status              String                @default("ACTIVE") @db.VarChar(20)
+  equipment           equipment             @relation(fields: [equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipment_bom_items equipment_bom_items[]
+
+  @@unique([equipment_id, bom_usage])
+}
+
+model equipment_bom_items {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bom_header_id         String                @db.Uuid
+  material_id           String                @db.Uuid
+  quantity              Decimal               @default(1) @db.Decimal(12, 3)
+  unit_of_measure       String                @default("UN") @db.VarChar(10)
+  item_category         String                @default("RECOMMENDED") @db.VarChar(20)
+  notes                 String?               @db.VarChar(255)
+  equipment_bom_headers equipment_bom_headers @relation(fields: [bom_header_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  materials             materials             @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([material_id], map: "idx_bomitem_material")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model equipment_installation_history {
+  id                     String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id           String               @db.Uuid
+  functional_location_id String               @db.Uuid
+  installed_from         DateTime             @db.Timestamptz(6)
+  installed_to           DateTime?            @db.Timestamptz(6)
+  equipment              equipment            @relation(fields: [equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  functional_locations   functional_locations @relation(fields: [functional_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model functional_locations {
+  id                             String                           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plant_id                       String                           @db.Uuid
+  code                           String                           @db.VarChar(60)
+  description                    String                           @db.VarChar(255)
+  parent_id                      String?                          @db.Uuid
+  category                       String?                          @db.VarChar(30)
+  level                          Int                              @default(0)
+  materialized_path              String?                          @db.VarChar(2000)
+  status                         fl_status                        @default(ACTIVE)
+  cost_center_id                 String?                          @db.Uuid
+  created_at                     DateTime                         @default(now()) @db.Timestamptz(6)
+  equipment                      equipment[]
+  equipment_installation_history equipment_installation_history[]
+  cost_centers                   cost_centers?                    @relation(fields: [cost_center_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  functional_locations           functional_locations?            @relation("functional_locationsTofunctional_locations", fields: [parent_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  other_functional_locations     functional_locations[]           @relation("functional_locationsTofunctional_locations")
+  plants                         plants                           @relation(fields: [plant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  maintenance_items              maintenance_items[]
+  measuring_points               measuring_points[]
+  notifications                  notifications[]
+  task_lists                     task_lists[]
+  work_orders                    work_orders[]
+
+  @@unique([plant_id, code])
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "idx_fl_description_trgm", type: Gin)
+  @@index([parent_id], map: "idx_fl_parent")
+}
+
+model maintenance_calls {
+  id                                                                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maintenance_plan_id                                                   String                @db.Uuid
+  maintenance_package_id                                                String?               @db.Uuid
+  call_number                                                           Int
+  scheduled_date                                                        DateTime              @db.Date
+  due_counter_reading                                                   Decimal?              @db.Decimal(14, 3)
+  status                                                                call_status           @default(SIMULATED)
+  work_order_id                                                         String?               @db.Uuid
+  generated_at                                                          DateTime?             @db.Timestamptz(6)
+  created_at                                                            DateTime              @default(now()) @db.Timestamptz(6)
+  work_orders_maintenance_calls_work_order_idTowork_orders              work_orders?          @relation("maintenance_calls_work_order_idTowork_orders", fields: [work_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_calls_wo")
+  maintenance_packages                                                  maintenance_packages? @relation(fields: [maintenance_package_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  maintenance_plans                                                     maintenance_plans     @relation(fields: [maintenance_plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders_work_orders_origin_maintenance_call_idTomaintenance_calls work_orders[]         @relation("work_orders_origin_maintenance_call_idTomaintenance_calls")
+
+  @@unique([maintenance_plan_id, maintenance_package_id, call_number])
+  @@index([maintenance_plan_id, scheduled_date], map: "idx_calls_plan_date")
+  @@index([status], map: "idx_calls_status")
+}
+
+model maintenance_item_packages {
+  id                     String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maintenance_item_id    String               @db.Uuid
+  maintenance_package_id String               @db.Uuid
+  maintenance_items      maintenance_items    @relation(fields: [maintenance_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  maintenance_packages   maintenance_packages @relation(fields: [maintenance_package_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([maintenance_item_id, maintenance_package_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model maintenance_items {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maintenance_plan_id       String                      @db.Uuid
+  equipment_id              String?                     @db.Uuid
+  functional_location_id    String?                     @db.Uuid
+  task_list_id              String                      @db.Uuid
+  description               String?                     @db.VarChar(255)
+  priority                  priority_level              @default(MEDIUM)
+  order_type                order_type                  @default(PREVENTIVE)
+  planner_group             String?                     @db.VarChar(50)
+  sort_field                String?                     @db.VarChar(50)
+  maintenance_item_packages maintenance_item_packages[]
+  equipment                 equipment?                  @relation(fields: [equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  functional_locations      functional_locations?       @relation(fields: [functional_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  maintenance_plans         maintenance_plans           @relation(fields: [maintenance_plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  task_lists                task_lists                  @relation(fields: [task_list_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([equipment_id], map: "idx_mi_equipment")
+  @@index([maintenance_plan_id], map: "idx_mi_plan")
+}
+
+model maintenance_packages {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  strategy_id               String                      @db.Uuid
+  package_key               String                      @db.VarChar(10)
+  cycle_value               Int
+  cycle_unit                cycle_unit
+  maintenance_calls         maintenance_calls[]
+  maintenance_item_packages maintenance_item_packages[]
+  maintenance_strategies    maintenance_strategies      @relation(fields: [strategy_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([strategy_id, package_key])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model maintenance_plans {
+  id                             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                           String                  @unique @db.VarChar(40)
+  description                    String                  @db.VarChar(255)
+  plan_type                      plan_type
+  maintenance_strategy_id        String?                 @db.Uuid
+  cycle_value                    Int?
+  cycle_unit                     cycle_unit?
+  measuring_point_id             String?                 @db.Uuid
+  start_date                     DateTime                @db.Date
+  scheduling_indicator           scheduling_indicator    @default(TIME_BASED)
+  shift_factor_early_pct         Decimal                 @default(10) @db.Decimal(5, 2)
+  shift_factor_late_pct          Decimal                 @default(10) @db.Decimal(5, 2)
+  call_horizon_pct               Decimal                 @default(90) @db.Decimal(5, 2)
+  planned_completion_offset_days Int                     @default(0)
+  factory_calendar_id            String                  @default("STD") @db.VarChar(20)
+  status                         plan_status             @default(ACTIVE)
+  last_call_date                 DateTime?               @db.Date
+  last_call_counter              Decimal?                @db.Decimal(14, 3)
+  created_at                     DateTime                @default(now()) @db.Timestamptz(6)
+  maintenance_calls              maintenance_calls[]
+  maintenance_items              maintenance_items[]
+  maintenance_strategies         maintenance_strategies? @relation(fields: [maintenance_strategy_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  measuring_points               measuring_points?       @relation(fields: [measuring_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model maintenance_strategies {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                 String                 @unique @db.VarChar(20)
+  description          String                 @db.VarChar(150)
+  maintenance_packages maintenance_packages[]
+  maintenance_plans    maintenance_plans[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model materials {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                       String                       @unique @db.VarChar(40)
+  description                String                       @db.VarChar(255)
+  material_type              material_type                @default(SPARE_PART)
+  material_group             String?                      @db.VarChar(50)
+  unit_of_measure            String                       @default("UN") @db.VarChar(10)
+  unit_cost                  Decimal?                     @default(0) @db.Decimal(14, 4)
+  criticality                Int?                         @db.SmallInt
+  active                     Boolean                      @default(true)
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  equipment_bom_items        equipment_bom_items[]
+  purchase_order_items       purchase_order_items[]
+  purchase_requisition_items purchase_requisition_items[]
+  stock                      stock[]
+  stock_movements            stock_movements[]
+  task_list_components       task_list_components[]
+  work_order_components      work_order_components[]
+
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "idx_materials_description_trgm", type: Gin)
+}
+
+model measurement_documents {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  measuring_point_id String           @db.Uuid
+  reading_date       DateTime         @db.Timestamptz(6)
+  counter_reading    Decimal          @db.Decimal(14, 3)
+  reading_difference Decimal?         @db.Decimal(14, 3)
+  recorded_by        String?          @db.Uuid
+  created_at         DateTime         @default(now()) @db.Timestamptz(6)
+  measuring_points   measuring_points @relation(fields: [measuring_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users              users?           @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([measuring_point_id, reading_date(sort: Desc)], map: "idx_measurement_point_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model measuring_points {
+  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id           String?                 @db.Uuid
+  functional_location_id String?                 @db.Uuid
+  code                   String                  @db.VarChar(40)
+  description            String                  @db.VarChar(150)
+  unit_of_measure        String                  @db.VarChar(10)
+  is_cumulative          Boolean                 @default(true)
+  maintenance_plans      maintenance_plans[]
+  measurement_documents  measurement_documents[]
+  equipment              equipment?              @relation(fields: [equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  functional_locations   functional_locations?   @relation(fields: [functional_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notifications {
+  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                   String                @unique @db.VarChar(40)
+  notification_type      notification_type     @default(M2_REQUEST)
+  equipment_id           String?               @db.Uuid
+  functional_location_id String?               @db.Uuid
+  description            String                @db.VarChar(255)
+  long_text              String?
+  reported_by            String                @db.Uuid
+  reported_date          DateTime              @default(now()) @db.Timestamptz(6)
+  required_start         DateTime?             @db.Timestamptz(6)
+  required_end           DateTime?             @db.Timestamptz(6)
+  priority               priority_level        @default(MEDIUM)
+  status                 notification_status   @default(CREATED)
+  is_breakdown           Boolean               @default(false)
+  malfunction_start      DateTime?             @db.Timestamptz(6)
+  malfunction_end        DateTime?             @db.Timestamptz(6)
+  created_at             DateTime              @default(now()) @db.Timestamptz(6)
+  equipment              equipment?            @relation(fields: [equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  functional_locations   functional_locations? @relation(fields: [functional_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                  users                 @relation(fields: [reported_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders            work_orders[]
+
+  @@index([equipment_id], map: "idx_notif_equipment")
+  @@index([status], map: "idx_notif_status")
+}
+
+model plants {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                 String                 @unique @db.VarChar(10)
+  name                 String                 @db.VarChar(100)
+  address              String?                @db.VarChar(255)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  cost_centers         cost_centers[]
+  equipment            equipment[]
+  functional_locations functional_locations[]
+  warehouses           warehouses[]
+  work_centers         work_centers[]
+}
+
+model purchase_order_items {
+  id                           String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchase_order_id            String                      @db.Uuid
+  purchase_requisition_item_id String?                     @db.Uuid
+  material_id                  String                      @db.Uuid
+  warehouse_id                 String                      @db.Uuid
+  quantity_ordered             Decimal                     @db.Decimal(12, 3)
+  quantity_received            Decimal                     @default(0) @db.Decimal(12, 3)
+  unit_cost                    Decimal?                    @db.Decimal(14, 4)
+  materials                    materials                   @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_orders              purchase_orders             @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  purchase_requisition_items   purchase_requisition_items? @relation(fields: [purchase_requisition_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouses                   warehouses                  @relation(fields: [warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stock_movements              stock_movements[]
+}
+
+model purchase_orders {
+  id                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                   String                 @unique @db.VarChar(40)
+  supplier_name          String                 @db.VarChar(150)
+  status                 purchase_status        @default(ORDERED)
+  order_date             DateTime               @default(dbgenerated("CURRENT_DATE")) @db.Date
+  expected_delivery_date DateTime?              @db.Date
+  purchase_order_items   purchase_order_items[]
+}
+
+model purchase_requisition_items {
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchase_requisition_id String                 @db.Uuid
+  material_id             String                 @db.Uuid
+  quantity                Decimal                @db.Decimal(12, 3)
+  needed_by               DateTime?              @db.Date
+  purchase_order_items    purchase_order_items[]
+  materials               materials              @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_requisitions   purchase_requisitions  @relation(fields: [purchase_requisition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model purchase_requisitions {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                       String                       @unique @db.VarChar(40)
+  work_order_id              String?                      @db.Uuid
+  requested_by               String                       @db.Uuid
+  requested_date             DateTime                     @default(now()) @db.Timestamptz(6)
+  status                     purchase_status              @default(REQUESTED)
+  purchase_requisition_items purchase_requisition_items[]
+  users                      users                        @relation(fields: [requested_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders                work_orders?                 @relation(fields: [work_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model stock {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  material_id       String     @db.Uuid
+  warehouse_id      String     @db.Uuid
+  quantity_on_hand  Decimal    @default(0) @db.Decimal(12, 3)
+  quantity_reserved Decimal    @default(0) @db.Decimal(12, 3)
+  min_stock         Decimal    @default(0) @db.Decimal(12, 3)
+  reorder_point     Decimal    @default(0) @db.Decimal(12, 3)
+  max_stock         Decimal?   @db.Decimal(12, 3)
+  materials         materials  @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouses        warehouses @relation(fields: [warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([material_id, warehouse_id])
+  @@index([warehouse_id], map: "idx_stock_below_reorder", where: raw("(quantity_on_hand <= reorder_point)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model stock_movements {
+  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  material_id            String                @db.Uuid
+  warehouse_id           String                @db.Uuid
+  movement_type          movement_type
+  quantity               Decimal               @db.Decimal(12, 3)
+  unit_cost              Decimal?              @db.Decimal(14, 4)
+  total_cost             Decimal?              @db.Decimal(14, 2)
+  work_order_id          String?               @db.Uuid
+  purchase_order_item_id String?               @db.Uuid
+  performed_by           String?               @db.Uuid
+  movement_date          DateTime              @default(now()) @db.Timestamptz(6)
+  notes                  String?               @db.VarChar(255)
+  materials              materials             @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                  users?                @relation(fields: [performed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_order_items   purchase_order_items? @relation(fields: [purchase_order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouses             warehouses            @relation(fields: [warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders            work_orders?          @relation(fields: [work_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([material_id, warehouse_id, movement_date(sort: Desc)], map: "idx_stockmov_material_wh")
+}
+
+model task_list_components {
+  id                     String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_list_operation_id String               @db.Uuid
+  material_id            String               @db.Uuid
+  quantity               Decimal              @default(1) @db.Decimal(12, 3)
+  unit_of_measure        String               @default("UN") @db.VarChar(10)
+  materials              materials            @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task_list_operations   task_list_operations @relation(fields: [task_list_operation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([material_id], map: "idx_tlc_material")
+}
+
+model task_list_operations {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_list_id         String                 @db.Uuid
+  operation_number     Int
+  description          String                 @db.VarChar(255)
+  work_center_id       String                 @db.Uuid
+  control_key          control_key            @default(PM01_INTERNAL)
+  duration_value       Decimal                @db.Decimal(8, 2)
+  duration_unit        String                 @default("HOUR") @db.VarChar(10)
+  number_of_workers    Int                    @default(1)
+  task_list_components task_list_components[]
+  task_lists           task_lists             @relation(fields: [task_list_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  work_centers         work_centers           @relation(fields: [work_center_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([task_list_id, operation_number])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model task_lists {
+  id                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  group_code             String                 @db.VarChar(40)
+  group_counter          Int                    @default(1)
+  description            String                 @db.VarChar(255)
+  task_list_type         task_list_type         @default(EQUIPMENT)
+  equipment_id           String?                @db.Uuid
+  functional_location_id String?                @db.Uuid
+  status                 String                 @default("RELEASED") @db.VarChar(20)
+  version                Int                    @default(1)
+  created_at             DateTime               @default(now()) @db.Timestamptz(6)
+  maintenance_items      maintenance_items[]
+  task_list_operations   task_list_operations[]
+  equipment              equipment?             @relation(fields: [equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  functional_locations   functional_locations?  @relation(fields: [functional_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders            work_orders[]
+
+  @@unique([group_code, group_counter])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model time_confirmations {
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  work_order_operation_id String                @db.Uuid
+  technician_id           String                @db.Uuid
+  work_date               DateTime              @db.Date
+  actual_hours            Decimal               @db.Decimal(6, 2)
+  is_final_confirmation   Boolean               @default(false)
+  notes                   String?               @db.VarChar(255)
+  created_at              DateTime              @default(now()) @db.Timestamptz(6)
+  users                   users                 @relation(fields: [technician_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_order_operations   work_order_operations @relation(fields: [work_order_operation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([technician_id, work_date], map: "idx_timeconf_technician")
+}
+
+model users {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  full_name             String                  @db.VarChar(150)
+  email                 String                  @unique @db.VarChar(150)
+  password_hash         String                  @db.VarChar(255)
+  role                  user_role               @default(TECHNICIAN)
+  specialty             String?                 @db.VarChar(50)
+  work_center_id        String?                 @db.Uuid
+  cost_center_id        String?                 @db.Uuid
+  active                Boolean                 @default(true)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  measurement_documents measurement_documents[]
+  notifications         notifications[]
+  purchase_requisitions purchase_requisitions[]
+  stock_movements       stock_movements[]
+  time_confirmations    time_confirmations[]
+  cost_centers          cost_centers?           @relation(fields: [cost_center_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_centers          work_centers?           @relation(fields: [work_center_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders           work_orders[]
+}
+
+model warehouses {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plant_id              String                  @db.Uuid
+  code                  String                  @db.VarChar(20)
+  description           String                  @db.VarChar(150)
+  purchase_order_items  purchase_order_items[]
+  stock                 stock[]
+  stock_movements       stock_movements[]
+  plants                plants                  @relation(fields: [plant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_order_components work_order_components[]
+
+  @@unique([plant_id, code])
+}
+
+model work_centers {
+  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plant_id               String                  @db.Uuid
+  code                   String                  @db.VarChar(20)
+  name                   String                  @db.VarChar(150)
+  specialty              String                  @db.VarChar(50)
+  cost_center_id         String?                 @db.Uuid
+  capacity_hours_per_day Decimal?                @default(8) @db.Decimal(5, 2)
+  active                 Boolean                 @default(true)
+  task_list_operations   task_list_operations[]
+  users                  users[]
+  cost_centers           cost_centers?           @relation(fields: [cost_center_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plants                 plants                  @relation(fields: [plant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_order_operations  work_order_operations[]
+  work_orders            work_orders[]
+
+  @@unique([plant_id, code])
+}
+
+model work_order_components {
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  work_order_id           String                 @db.Uuid
+  work_order_operation_id String?                @db.Uuid
+  material_id             String                 @db.Uuid
+  warehouse_id            String?                @db.Uuid
+  quantity_required       Decimal                @db.Decimal(12, 3)
+  quantity_withdrawn      Decimal                @default(0) @db.Decimal(12, 3)
+  unit_of_measure         String                 @default("UN") @db.VarChar(10)
+  status                  reservation_status     @default(OPEN)
+  materials               materials              @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouses              warehouses?            @relation(fields: [warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders             work_orders            @relation(fields: [work_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  work_order_operations   work_order_operations? @relation(fields: [work_order_operation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([material_id], map: "idx_woc_material")
+}
+
+model work_order_operations {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  work_order_id         String                  @db.Uuid
+  operation_number      Int
+  description           String                  @db.VarChar(255)
+  work_center_id        String                  @db.Uuid
+  control_key           control_key             @default(PM01_INTERNAL)
+  duration_planned      Decimal                 @db.Decimal(8, 2)
+  duration_actual       Decimal                 @default(0) @db.Decimal(8, 2)
+  number_of_workers     Int                     @default(1)
+  status                String                  @default("OPEN") @db.VarChar(20)
+  time_confirmations    time_confirmations[]
+  work_order_components work_order_components[]
+  work_centers          work_centers            @relation(fields: [work_center_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders           work_orders             @relation(fields: [work_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([work_order_id, operation_number])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model work_orders {
+  id                                                                          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                                                                        String                  @unique @db.VarChar(40)
+  order_type                                                                  order_type
+  origin_notification_id                                                      String?                 @db.Uuid
+  origin_maintenance_call_id                                                  String?                 @db.Uuid
+  equipment_id                                                                String?                 @db.Uuid
+  functional_location_id                                                      String?                 @db.Uuid
+  task_list_id                                                                String?                 @db.Uuid
+  description                                                                 String                  @db.VarChar(255)
+  priority                                                                    priority_level          @default(MEDIUM)
+  status                                                                      order_status            @default(CREATED)
+  planner_group                                                               String?                 @db.VarChar(50)
+  work_center_responsible_id                                                  String?                 @db.Uuid
+  cost_center_id                                                              String?                 @db.Uuid
+  basic_start_date                                                            DateTime?               @db.Date
+  basic_end_date                                                              DateTime?               @db.Date
+  scheduled_start_date                                                        DateTime?               @db.Date
+  scheduled_end_date                                                          DateTime?               @db.Date
+  actual_start_date                                                           DateTime?               @db.Timestamptz(6)
+  actual_end_date                                                             DateTime?               @db.Timestamptz(6)
+  released_at                                                                 DateTime?               @db.Timestamptz(6)
+  technically_completed_at                                                    DateTime?               @db.Timestamptz(6)
+  closed_at                                                                   DateTime?               @db.Timestamptz(6)
+  created_by                                                                  String?                 @db.Uuid
+  created_at                                                                  DateTime                @default(now()) @db.Timestamptz(6)
+  maintenance_calls_maintenance_calls_work_order_idTowork_orders              maintenance_calls[]     @relation("maintenance_calls_work_order_idTowork_orders")
+  purchase_requisitions                                                       purchase_requisitions[]
+  stock_movements                                                             stock_movements[]
+  work_order_components                                                       work_order_components[]
+  work_order_operations                                                       work_order_operations[]
+  cost_centers                                                                cost_centers?           @relation(fields: [cost_center_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                                                       users?                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipment                                                                   equipment?              @relation(fields: [equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  functional_locations                                                        functional_locations?   @relation(fields: [functional_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  maintenance_calls_work_orders_origin_maintenance_call_idTomaintenance_calls maintenance_calls?      @relation("work_orders_origin_maintenance_call_idTomaintenance_calls", fields: [origin_maintenance_call_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notifications                                                               notifications?          @relation(fields: [origin_notification_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task_lists                                                                  task_lists?             @relation(fields: [task_list_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_centers                                                                work_centers?           @relation(fields: [work_center_responsible_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([basic_start_date, basic_end_date], map: "idx_wo_dates")
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "idx_wo_description_trgm", type: Gin)
+  @@index([equipment_id], map: "idx_wo_equipment")
+  @@index([status], map: "idx_wo_status")
+}
+
+enum call_status {
+  SIMULATED
+  SCHEDULED
+  CALLED
+  SKIPPED
+  COMPLETED
+}
+
+enum control_key {
+  PM01_INTERNAL
+  PM02_EXTERNAL
+  PM03_INSPECTION_ONLY
+}
+
+enum cycle_unit {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+  HOUR_METER
+  KM
+  CYCLE_COUNT
+}
+
+enum equipment_status {
+  ACTIVE
+  INACTIVE
+  IN_MAINTENANCE
+  DECOMMISSIONED
+  SCRAPPED
+}
+
+enum fl_status {
+  ACTIVE
+  INACTIVE
+  DECOMMISSIONED
+}
+
+enum material_type {
+  SPARE_PART
+  CONSUMABLE
+  TOOL
+  RAW_MATERIAL
+}
+
+enum movement_type {
+  GR_101_PURCHASE
+  GI_261_CONSUMPTION
+  GI_262_RETURN
+  TR_311_TRANSFER
+  ADJ_701_POSITIVE
+  ADJ_702_NEGATIVE
+}
+
+enum notification_status {
+  CREATED
+  IN_PROCESS
+  COMPLETED
+  CLOSED
+}
+
+enum notification_type {
+  M1_MALFUNCTION
+  M2_REQUEST
+  M3_ACTIVITY_REPORT
+}
+
+enum order_status {
+  CREATED
+  RELEASED
+  IN_PROCESS
+  COMPLETED
+  TECHNICALLY_COMPLETED
+  CLOSED
+  CANCELLED
+}
+
+enum order_type {
+  CORRECTIVE
+  PREVENTIVE
+  PREDICTIVE
+  INSPECTION
+  IMPROVEMENT
+}
+
+enum plan_status {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum plan_type {
+  TIME_BASED
+  COUNTER_BASED
+  MULTIPLE_COUNTER
+  CONDITION_BASED
+}
+
+enum priority_level {
+  EMERGENCY @map("1_EMERGENCY")
+  HIGH      @map("2_HIGH")
+  MEDIUM    @map("3_MEDIUM")
+  LOW       @map("4_LOW")
+}
+
+enum purchase_status {
+  REQUESTED
+  APPROVED
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+enum reservation_status {
+  OPEN
+  PARTIALLY_WITHDRAWN
+  WITHDRAWN
+  RETURNED
+}
+
+enum scheduling_indicator {
+  TIME_BASED
+  COMPLETION_BASED
+}
+
+enum task_list_type {
+  EQUIPMENT
+  FUNCTIONAL_LOCATION
+  GENERAL
+}
+
+enum user_role {
+  ADMIN
+  PLANNER
+  TECHNICIAN
+  WAREHOUSE
+  VIEWER
+}

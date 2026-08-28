@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+/*
+ * Paleta "ERP industrial": densa, sobria, pensada para grillas con muchas
+ * columnas y uso prolongado en planta. Sidebar oscura fija (patrón común de
+ * paneles de administración); el área de contenido cambia entre claro/oscuro.
+ * El tema explícito se controla con [data-theme] (ver ThemeToggle); sin
+ * elección explícita, se sigue la preferencia del sistema.
+ */
+
+:root {
+  --background: #f1f3f6;
+  --foreground: #12161f;
+  --surface: #ffffff;
+  --surface-muted: #f8f9fb;
+  --border: #dde1e7;
+  --border-strong: #c4cad4;
+
+  --sidebar-bg: #10182b;
+  --sidebar-fg: #dbe2f0;
+  --sidebar-fg-muted: #8792ab;
+  --sidebar-active: #1c2740;
+  --sidebar-border: #232f4a;
+
+  --accent: #2457c9;
+  --accent-fg: #ffffff;
+  --accent-hover: #1c46a8;
+
+  --muted-fg: #5b6472;
+
+  --success: #157347;
+  --success-bg: #e6f4ec;
+  --warning: #a15c00;
+  --warning-bg: #fdf1de;
+  --danger: #b3261e;
+  --danger-bg: #fbe9e8;
+  --info: #0b6e8f;
+  --info-bg: #e4f3f8;
+
+  --radius: 0.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0b0f19;
+    --foreground: #e7eaf0;
+    --surface: #131a29;
+    --surface-muted: #101623;
+    --border: #263049;
+    --border-strong: #34405e;
+
+    --sidebar-bg: #060a14;
+    --sidebar-fg: #cbd5ec;
+    --sidebar-fg-muted: #6b7690;
+    --sidebar-active: #131c30;
+    --sidebar-border: #17203590;
+
+    --accent: #5b8def;
+    --accent-fg: #0b0f19;
+    --accent-hover: #86aef2;
+
+    --muted-fg: #8a93a8;
+
+    --success: #3ecf8e;
+    --success-bg: #113127;
+    --warning: #e8a33d;
+    --warning-bg: #362408;
+    --danger: #f0685f;
+    --danger-bg: #3a1614;
+    --info: #4fc3e0;
+    --info-bg: #0e2e37;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #0b0f19;
+  --foreground: #e7eaf0;
+  --surface: #131a29;
+  --surface-muted: #101623;
+  --border: #263049;
+  --border-strong: #34405e;
+
+  --sidebar-bg: #060a14;
+  --sidebar-fg: #cbd5ec;
+  --sidebar-fg-muted: #6b7690;
+  --sidebar-active: #131c30;
+  --sidebar-border: #17203590;
+
+  --accent: #5b8def;
+  --accent-fg: #0b0f19;
+  --accent-hover: #86aef2;
+
+  --muted-fg: #8a93a8;
+
+  --success: #3ecf8e;
+  --success-bg: #113127;
+  --warning: #e8a33d;
+  --warning-bg: #362408;
+  --danger: #f0685f;
+  --danger-bg: #3a1614;
+  --info: #4fc3e0;
+  --info-bg: #0e2e37;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-fg: var(--sidebar-fg);
+  --color-sidebar-fg-muted: var(--sidebar-fg-muted);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-hover: var(--accent-hover);
+  --color-muted-fg: var(--muted-fg);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Densidad ERP: inputs/botones compactos por defecto en toda la app */
+input,
+select,
+textarea,
+button {
+  font-size: 13px;
+}
