@@ -16,12 +16,19 @@ async function main() {
   const planner = await upsertUser("planificador@cmms.local", "Ana Planificadora", "PLANNER", "Planner123!");
   const technician = await upsertUser("tecnico@cmms.local", "Juan Técnico", "TECHNICIAN", "Tecnico123!");
 
+  const plant = await prisma.plants.upsert({
+    where: { code: "P1" },
+    update: {},
+    create: { code: "P1", name: "Planta Principal" },
+  });
+
   console.log("Usuarios de prueba creados/actualizados:");
   console.log({ admin: admin.email, planner: planner.email, technician: technician.email });
   console.log("\nContraseñas (solo para entorno de desarrollo):");
   console.log("  admin@cmms.local        / Admin123!");
   console.log("  planificador@cmms.local / Planner123!");
   console.log("  tecnico@cmms.local      / Tecnico123!");
+  console.log("\nPlanta de referencia:", plant.code, "-", plant.name);
 }
 
 main()

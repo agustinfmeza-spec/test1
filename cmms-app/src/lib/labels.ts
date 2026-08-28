@@ -54,3 +54,23 @@ export const PRIORITY_TONE: Record<string, "neutral" | "info" | "warning" | "suc
   MEDIUM: "info",
   LOW: "neutral",
 };
+
+export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+  M1_MALFUNCTION: "Avería",
+  M2_REQUEST: "Solicitud",
+  M3_ACTIVITY_REPORT: "Reporte de actividad",
+};
+
+export const NOTIFICATION_STATUS_LABELS: Record<string, string> = {
+  CREATED: "Creado",
+  IN_PROCESS: "En proceso",
+  COMPLETED: "Completado",
+  CLOSED: "Cerrado",
+};
+
+export const NOTIFICATION_STATUS_TONE: Record<string, "neutral" | "info" | "warning" | "success" | "danger"> = {
+  CREATED: "neutral",
+  IN_PROCESS: "warning",
+  COMPLETED: "success",
+  CLOSED: "neutral",
+};
