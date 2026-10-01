@@ -63,7 +63,7 @@ Base case month by month: M1-2 net 27k · M3-4 79k · M5-6 146k · M7-9 203k (vs
 ## 4. Growth roadmap (ever-growing, 9-month ramp + beyond)
 | Phase | When | Goals | KPIs |
 |---|---|---|---|
-| **0 – Setup** | Before printer arrives | Confirm cuota terms; Rawspeed catalog of 6–9 hero parts (3 per tier); mock-up photos/video; WhatsApp Business + QR quote card; list 20 contacts from track days/meets | 6–8 pre-orders |
+| **0 – Setup** | Before printer arrives | Ask Adriana/Sergio about the Hilux; Rawspeed catalog of 6–9 hero parts (3 per tier); mock-up photos/video; WhatsApp Business + QR quote card; list 20 contacts from track days/meets | 6–8 pre-orders |
 | **1 – Proof** (M1-2) | Nov–Dec 26 | 4 jobs/mo (2 A, 2 B) at discount to real contacts; film every print + install; calibrate PA6-CF drying/settings | Tier C test parts on 2 cars; cost-per-job logged |
 | **2 – Engineering offer** (M3-4) | Jan–Feb 27 | 8 jobs/mo incl. first Tier C; first "structural parts" content series; join 3 community groups | 2 Tier C jobs/mo; first referrals |
 | **3 – Niche ownership** (M5-6) | Mar–Apr 27 | 12 jobs/mo, Tier C = 5; poly-industry outreach starts (2 warm talks/mo via SGS/UTN) | 4–6% IG engagement; 3 repeat customers |
