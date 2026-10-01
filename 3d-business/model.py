@@ -1,76 +1,86 @@
-"""Financial model for the X2D side-hustle. Edit ASSUMPTIONS, run `python3 model.py`.
-Outputs: schedule.csv (monthly) and a markdown summary on stdout.
-All money in USD unless suffixed _ars; ARS converted at FX (assumed, update monthly)."""
+"""X2D Print Venture — ARS financial model (constant pesos, no inflation unless set).
+Edit ASSUMPTIONS, run `python3 model.py`. Writes schedule_<scenario>.csv + kpi_tracker.csv, prints markdown."""
 import csv
 
 A = dict(
-    fx=1500,                 # ARS per USD used to price (ASSUMPTION - update)
-    cuota_ars=395_000, n_cuotas=9,
-    start="2026-11",
-    starter_stock_usd=350,   # filament, tools, packaging bought before month 1
-    monotributo_ars=45_000,  # monthly (ASSUMPTION - check ARCA/AFIP current table)
-    packaging_pct=0.04, fail_rate=0.08, wear_usd_per_hr=0.15, power_usd_per_hr=0.03,
-    fee={"direct": 0.03, "marketplace": 0.18},   # IG/WhatsApp+MP transfer vs Mercado Libre
-    capacity_hrs=200,        # realistic print hours/month for a side hustle (job + night classes)
-    owner_draw_pct=0.0,      # reinvest everything until cuotas are covered
+    cuota=395_000, n_cuotas=9, start="2026-11",         # start month: VERIFY vs shipping date
+    capex=3_555_000,
+    free_cash_pre_cuota=1_402_257,                       # from context doc §3.3
+    tire_net_cost=79_295, tire_ends_month=6,             # Hilux tire cuota ends ~Apr-27 -> frees cash from M7
+    early_discount=0.05,                                 # blended discounts on first jobs/referrals (their sheet implies ~4-7%)
+    waste=0.08,                                          # failed prints, % of material cost
+    wear=0.03,                                           # hardened nozzle/plates/dryer reserve, % of revenue
+    fee=0.03,                                            # payments/platform blended (direct sales ~0-3%)
+    monotributo=0,                                       # VERIFY: Rawspeed's existing monotributo may already cover this
+    post_hours={"A": 0.25, "B": 0.5, "C": 1.0}, labor_rate=1_000,   # opportunity cost, NOT cash
+    infl_monthly=0.0,                                    # price/cost indexation; cuota is fixed in nominal ARS
 )
+TIER = {"A": (6_000, 1_260), "B": (15_000, 3_420), "C": (35_000, 11_330)}   # (price, cost) from context doc §5.2
 
-# channel: avg ticket USD, filament USD/order, print hrs/order, share sold via marketplace
-CH = {
-    "photo": dict(ticket=18, mat=1.2, hrs=1.8, mkt=0.5),
-    "auto":  dict(ticket=30, mat=2.6, hrs=3.0, mkt=0.5),
-    "b2b_utn": dict(ticket=60, mat=3.0, hrs=5.0, mkt=0.0),   # students/teams/small shops
-}
-# orders per month, months 1..12 (A = base). Conservative = x0.6, optimistic = x1.4
-BASE = {
-    "photo":   [8, 12, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34],
-    "auto":    [2,  5,  8, 12, 16, 20, 24, 28, 32, 36, 40, 44],
-    "b2b_utn": [1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-}
-SCEN = {"conservative": 0.6, "base": 1.0, "optimistic": 1.4}
-ADS = [10, 15, 20, 30, 30, 40, 40, 50, 50, 50, 60, 60]  # USD/month marketing (photo content is free)
+def mix(m):  # jobs per tier for month m (1-based) — their ramp, plateau after M9
+    if m <= 2: return dict(A=2, B=2, C=0)
+    if m <= 4: return dict(A=3, B=3, C=2)
+    if m <= 6: return dict(A=3, B=4, C=5)
+    return dict(A=3, B=4, C=8)
 
-def run(mult):
-    cuota = A["cuota_ars"] / A["fx"]
-    mono = A["monotributo_ars"] / A["fx"]
-    cash = -A["starter_stock_usd"]
-    rows = []
-    for m in range(12):
-        rev = cogs = fees = hrs = 0.0
-        want = sum(BASE[k][m] * mult * c["hrs"] for k, c in CH.items())
-        clamp = min(1.0, A["capacity_hrs"] / want)   # one printer cannot exceed capacity
-        for k, c in CH.items():
-            n = BASE[k][m] * mult * clamp
-            r = n * c["ticket"]
-            h = n * c["hrs"]
-            rev += r
-            hrs += h
-            fees += r * (c["mkt"] * A["fee"]["marketplace"] + (1 - c["mkt"]) * A["fee"]["direct"])
-            cogs += n * c["mat"] * (1 + A["fail_rate"]) + h * (A["wear_usd_per_hr"] + A["power_usd_per_hr"])
-            cogs += r * A["packaging_pct"]
-        opex = mono + ADS[m]
-        contrib = rev - cogs - fees
-        net_pre = contrib - opex
-        pay = cuota if m < A["n_cuotas"] else 0
-        cash += net_pre - pay
-        rows.append(dict(month=m + 1, revenue=rev, cogs=cogs, fees=fees, opex=opex,
-                         net_before_cuota=net_pre, cuota=pay, net_after_cuota=net_pre - pay,
-                         cum_cash=cash, print_hrs=hrs, util=hrs / A["capacity_hrs"]))
+def layers(m):  # UPSIDE hypotheses not in their plan: photo accessories batches + UTN student jobs
+    a = 0 if m < 3 else min(12, 6 + (m - 3))
+    b = 0 if m < 5 else min(4, 2 + (m - 5) // 2)
+    return dict(A=a, B=b, C=0)
+
+SCEN = {"conservative (0.5x)": (0.5, False), "base (your ramp)": (1.0, False), "base + photo/UTN layers": (1.0, True)}
+
+def run(mult, add_layers, months=18):
+    rows, cum_margin, cum_cash = [], 0.0, 0.0
+    for m in range(1, months + 1):
+        jobs = {t: n * mult for t, n in mix(m).items()}
+        if add_layers:
+            for t, n in layers(m).items(): jobs[t] += n
+        idx = (1 + A["infl_monthly"]) ** (m - 1)
+        rev = sum(n * TIER[t][0] for t, n in jobs.items()) * (1 - A["early_discount"]) * idx
+        mat = sum(n * TIER[t][1] for t, n in jobs.items()) * idx
+        gross = rev - mat
+        extra = mat * A["waste"] + rev * (A["wear"] + A["fee"]) + A["monotributo"]
+        net = gross - extra
+        hrs = sum(n * A["post_hours"][t] for t, n in jobs.items())
+        cuota = A["cuota"] if m <= A["n_cuotas"] else 0
+        free = A["free_cash_pre_cuota"] + (A["tire_net_cost"] if m > A["tire_ends_month"] else 0)
+        personal_buffer = free - cuota                      # without business income
+        cum_margin += net
+        cum_cash += net - cuota
+        rows.append(dict(month=m, jobs=round(sum(jobs.values()), 1), revenue=rev, net_margin=net,
+                         cuota=cuota, business_minus_cuota=net - cuota,
+                         buffer_without_business=personal_buffer, buffer_with_business=personal_buffer + net,
+                         capex_recovered_pct=cum_margin / A["capex"] * 100, postproc_hours=hrs,
+                         postproc_opportunity_cost=hrs * A["labor_rate"]))
     return rows
 
 if __name__ == "__main__":
-    cuota = A["cuota_ars"] / A["fx"]
-    print(f"Cuota = ARS {A['cuota_ars']:,} = USD {cuota:,.0f} @ {A['fx']}; total ARS {A['cuota_ars']*A['n_cuotas']:,}\n")
-    for s, mult in SCEN.items():
-        rows = run(mult)
-        with open(f"schedule_{s}.csv", "w", newline="") as f:
+    print("Reconciliation of your sheet's stated ramp vs. tier math (price - cost, no discount):")
+    for lbl, m, stated_rev, stated_mar in [("M1-2", 1, 42_000, 32_640), ("M3-4", 3, 127_000, 95_140),
+                                           ("M5-6", 5, 238_000, 175_990), ("M7-9", 7, 334_000, 245_260)]:
+        j = mix(m); r = sum(n * TIER[t][0] for t, n in j.items()); g = sum(n * (TIER[t][0] - TIER[t][1]) for t, n in j.items())
+        print(f"  {lbl}: tier math rev {r:,} / margin {g:,}  vs stated {stated_rev:,} / {stated_mar:,}")
+    print()
+    for name, (mult, lay) in SCEN.items():
+        rows = run(mult, lay)
+        fn = "schedule_" + name.split(" (")[0].replace(" + ", "_").replace(" ", "_").replace("/", "_") + ".csv"
+        with open(fn, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=rows[0].keys()); w.writeheader()
-            for r in rows: w.writerow({k: round(v, 2) for k, v in r.items()})
-        first = next((r["month"] for r in rows if r["net_before_cuota"] >= cuota), None)
-        be = next((r["month"] for r in rows if r["cum_cash"] >= 0), None)
-        print(f"## {s} (x{mult})  | cuota covered by profit from month {first} | cumulative cash >= 0 from month {be}")
-        print("| M | Rev | COGS | Fees | Opex | Net pre-cuota | Cuota | Net | Cum cash | Hrs | Util |")
-        print("|--|--|--|--|--|--|--|--|--|--|--|")
+            for r in rows: w.writerow({k: round(v, 1) for k, v in r.items()})
+        pay = next((r["month"] for r in rows if r["capex_recovered_pct"] >= 100), None)
+        print(f"## {name}  -> CAPEX recovered by business margin at month: {pay or '>18'}  [{fn}]")
+        print("| M | Jobs | Revenue | Net margin | Cuota | Biz - cuota | Buffer w/o biz | CAPEX rec. | Post-proc h |")
+        print("|--|--|--|--|--|--|--|--|--|")
         for r in rows:
-            print(f"| {r['month']} | {r['revenue']:.0f} | {r['cogs']:.0f} | {r['fees']:.0f} | {r['opex']:.0f} | {r['net_before_cuota']:.0f} | {r['cuota']:.0f} | {r['net_after_cuota']:.0f} | {r['cum_cash']:.0f} | {r['print_hrs']:.0f} | {r['util']:.0%} |")
+            if r["month"] in (1, 2, 3, 4, 6, 9, 10, 12, 15, 18):
+                print(f"| {r['month']} | {r['jobs']:.0f} | {r['revenue']:,.0f} | {r['net_margin']:,.0f} | {r['cuota']:,.0f} | {r['business_minus_cuota']:,.0f} | {r['buffer_without_business']:,.0f} | {r['capex_recovered_pct']:.0f}% | {r['postproc_hours']:.1f} |")
         print()
+    with open("kpi_tracker.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["month", "calendar", "jobs_target", "mix_A/B/C", "revenue_target", "margin_target", "cum_capex_%_target", "jobs_actual", "revenue_actual", "margin_actual", "postproc_hours_actual", "notes"])
+        rows = run(1.0, False); y, mo = map(int, A["start"].split("-"))
+        for r in rows[:12]:
+            mm = (mo - 1 + r["month"] - 1) % 12 + 1; yy = y + (mo - 1 + r["month"] - 1) // 12
+            j = mix(r["month"])
+            w.writerow([r["month"], f"{yy}-{mm:02d}", round(r["jobs"]), f"{j['A']}/{j['B']}/{j['C']}", round(r["revenue"]), round(r["net_margin"]), round(r["capex_recovered_pct"]), "", "", "", "", ""])
