@@ -9,7 +9,7 @@
 2. **Your own ramp is credible but slightly rosy.** After adding costs your sheet leaves out (failed prints, nozzle/plate wear, payment fees), the same ramp gives **≈ ARS 203k/mo net at month 7+ (not 245k)**, **~31% of the financing covered by the business over 9 months (not 38%)**, and CAPEX payback at **~month 21 (not ~18)**.
 3. **The real constraint is your time and demand**, not money or machine hours: 15 jobs/mo is ~11 h/month of post-processing — tiny. The upside is in widening the funnel (photo accessories + UTN), not in printing more hours.
 4. **Moat:** nobody local visibly sells *structural, carbon-fiber-reinforced* parts (Erexit, CNCero etc. are generic PLA/PETG/ABS/nylon), and *you* can film the part on a real car. Tier C (PA6-CF) is 53% of volume by month 7 and ~70% of margin — **protect that mix**.
-5. **Biggest early actions:** confirm the 9 cuotas are really interest-free, pre-sell 6–8 jobs through Rawspeed contacts, and fix the Tier C unit economics with real prints in the first 30 days.
+5. **Biggest early actions:** pre-sell 6–8 jobs through Rawspeed contacts, and fix the Tier C unit economics with real prints in the first 30 days.
 
 ---
 
@@ -25,7 +25,7 @@ From your research: 256×256×260 mm, 300 °C nozzle, **active chamber 65 °C**,
 | PC/PC-CF, PPS-CF (H-series territory) | ❌ out of scope — **don't quote parts above PAHT-CF's ~180–200 °C HDT** (e.g. directly on turbo/exhaust) |
 
 **Process rule:** orient and design with heat-set inserts to avoid supports; use the proper support filament only when geometry demands it.
-**Verify:** whether the 9 cuotas via Laboratorio3D are truly interest-free (only the 3-cuota plan was confirmed); shipping date vs the Nov-26 start used here.
+**Confirmed:** the 9 cuotas via Laboratorio3D are interest-free; first cuota is paid in week 1 of Nov-26 (model start month).
 
 ---
 
@@ -36,7 +36,7 @@ From your research: 256×256×260 mm, 300 °C nozzle, **active chamber 65 °C**,
 | **B — Functional/exterior** | ASA/PETG | 3,420 | 15,000 | 11,580 (77%) | trim covers, clips, phone mounts, light brackets for photo gear, enclosures |
 | **C — Structural/engineering** | PA6-CF + PA/PET support | 11,330 | 35,000 | 23,670 (68%) | mate mount/extensions, aux-light brackets, motor-bay cable management, camera handles/grips, UTN/SGS tooling |
 
-**Costs your sheet leaves out (v2 adds them):** failed prints 8% of material · nozzle/plate/dryer wear 3% of revenue · payment/platform fees 3% · early-job discounts ~5% (your revenue figures already imply 4–7%). Post-processing time (0.25 / 0.5 / 1 h per A/B/C job at ~ARS 1,000/h) is shown as *opportunity cost*, not cash. Monotributo is set to 0 because Rawspeed's may already cover it — **verify category and billing limit**.
+**Costs your sheet leaves out (v2 adds them):** failed prints 8% of material · nozzle/plate/dryer wear 3% of revenue · payment/platform fees 3% · early-job discounts ~5% (your revenue figures already imply 4–7%). Post-processing time (0.25 / 0.5 / 1 h per A/B/C job at ~ARS 1,000/h) is shown as *opportunity cost*, not cash. Monotributo is not needed (confirmed), so it is set to 0.
 
 **Data reconciliation:** your M3-4, M5-6, M7-9 revenue totals are ~4.5–6.7% below the tier math (133k/253k/358k vs 127k/238k/334k). I treat that as the discount factor. If it isn't, the model is slightly conservative.
 
@@ -56,7 +56,7 @@ Base case month by month: M1-2 net 27k · M3-4 79k · M5-6 146k · M7-9 203k (vs
 **Levers beyond the plan (hypotheses to test, not facts):**
 - **Photo/cine accessories for Rawspeed's circle** — rig plates, car-mount adapters, light-stand brackets, handles. Sold in batches at Tier A/B; doubles as content. Model assumes +6→+12 Tier A jobs/mo from M3.
 - **UTN student/team jobs** (project enclosures, mechanisms, team prototypes) — model assumes +2→+4 Tier B jobs/mo from M5; ask the Secretaría de Extensión about supplier terms **(VERIFY)**.
-- **Hilux SW4 as showcase vehicle** (co-owned — get Adriana/Sergio's OK): real-world heat/vibration test bed for Tier C parts and content.
+- **Hilux SW4 as showcase vehicle** (co-owned — ask Adriana/Sergio; expected to be fine): real-world heat/vibration test bed for Tier C parts and content.
 
 ---
 
@@ -127,14 +127,12 @@ Time budget at 15 jobs/mo: ~11 h post-processing + ~6 h/week design/content/admi
 ## 8. Risks & open assumptions
 | Risk / assumption | Mitigation |
 |---|---|
-| 9 cuotas might carry interest | Confirm in writing with Laboratorio3D before paying |
 | Tier prices untested vs customers | First 6 jobs = price test; log wins/losses |
 | Tier C failure/wear underestimated | Track grams used vs sliced estimate; reserve 3% revenue for wear parts |
 | Demand depends on active marketing | Content cadence fixed in scheduler; Rawspeed network first |
 | Liability on car parts | Non-safety only; disclaimer; test + record |
 | Peso inflation | Index prices monthly; fixed cuota erodes in real terms |
 | Burnout (job + UTN + Rawspeed) | Capacity cap, fixed slots, exam-week blackout |
-| Monotributo / billing | Check category & limit; Rawspeed's registration may apply |
 | Post-processing not costed | Track real hours for 60 days; update `post_hours` |
 
 ---
